@@ -82,6 +82,7 @@ CONFIGS = [
     ("clean + steering 2", "lab/models/gpt2-spanish", None, {"min_p": 0.05, "dialogue_bias": 1.0, "paragraph_bias": 1.5, "avoid_bias": 6.0, "violence_bias": 6.0, "profanity_bias": 1.5, "steer": {"sexual": 2.0, "violence": 2.0}}),
     ("gentle + matched steering 1", "lab/models/gpt2-spanish", None, {"min_p": 0.02, "dialogue_bias": 1.0, "paragraph_bias": 1.5, "avoid_bias": 6.0, "violence_bias": 6.0, "profanity_bias": 1.5, "steer": {"sexual": 1.0, "violence": 1.0}}),
     ("gentle + matched steering 0.6", "lab/models/gpt2-spanish", None, {"min_p": 0.02, "dialogue_bias": 1.0, "paragraph_bias": 1.5, "avoid_bias": 6.0, "violence_bias": 6.0, "profanity_bias": 1.5, "steer": {"sexual": 0.6, "violence": 0.6}}),
+    ("babel-lab-2 candidate", "lab/models/gpt2-spanish", None, {"min_p": 0.02, "dialogue_bias": 1.0, "paragraph_bias": 1.5, "avoid_bias": 6.0, "violence_bias": 6.0, "profanity_bias": 3.0, "steer": {"sexual": 1.0, "violence": 1.0}}),
     ("dreamlike preamble", "lab/models/gpt2-spanish", "lab/preambles/onirico.txt", {"min_p": 0.05, "dialogue_bias": 1.5, "paragraph_bias": 1.5}),
     ("philosophical preamble", "lab/models/gpt2-spanish", "lab/preambles/filosofico.txt", {"min_p": 0.05, "dialogue_bias": 1.5, "paragraph_bias": 1.5}),
     ("distilled, min-p 0.05", "lab/models/gpt2-spanish-distilled", None, {"min_p": 0.05}),

@@ -32,11 +32,11 @@ CODEC = "rans-bigint-1"        # src/codec.ts and lm_library.py: exact rANS, can
 CHARACTERS = "printable-1"     # any printable Unicode + newline; no control/format/private/unassigned
 ADDRESS = "hex36-4-5-32-410-1" # hexágono base 36 · muro 1–4 · anaquel 1–5 · volumen 1–32 · página 1–410
 
-# The current recommendation (shelf 16 on the comparison page).
+# The current recommendation. babel-lab-1 used profanity_bias 1.5; babel-lab-2 raises it to 3.0.
 RECOMMENDED = {
     "model": "lab/models/gpt2-spanish",
     "settings": {"repetition_penalty": 1.3, "min_p": 0.02, "dialogue_bias": 1.0, "paragraph_bias": 1.5,
-                 "avoid_bias": 6.0, "violence_bias": 6.0, "profanity_bias": 1.5,
+                 "avoid_bias": 6.0, "violence_bias": 6.0, "profanity_bias": 3.0,
                  "steer": {"sexual": 1.0, "violence": 1.0}, "steer_layers": [3, 11]},
 }
 FIXTURE_SEEDS = ["fixture-0", "fixture-1"]
