@@ -1,12 +1,13 @@
 {
   "id": "babel-1",
-  "description": "The first Library: stock DeepESP GPT-2 124M, min-p 0.02, layout nudges, word penalties (sexual 6, violence 6, profanity 3), activation steering against sexual and graphic-violence content",
-  "frozen": "2026-10-15T16:28:05+0200",
+  "description": "The first Library: stock DeepESP GPT-2 124M; Latin alphabet; min-p 0.02, layout nudges, loop breaker, word penalties (sexual 6, violence 6, profanity 3), steering against sexual and graphic-violence content; codec rans-2 (likelihood order, fallback mixture, escape slot); scrambled base-62 addresses",
+  "frozen": "2026-10-15T20:19:09+0200",
   "status": "lab (float MLX: bit-exact on this machine only)",
-  "codec": "rans-bigint-1",
-  "characters": "printable-1",
-  "address": "hex36-4-5-32-410-1",
+  "codec": "rans-2",
+  "address": "b62-feistel-1",
   "page_chars": 3200,
+  "alphabet": "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõöøùúûüýþÿŒœ0123456789 \n.,;:¿?¡!…—–-()[]«»\"'“”‘’/%&@#*+=€$£ºª°·",
+  "scramble_key": "b2611df9bc5a75606c8acb320a5553234bf730f04e72e9e296b59804da1bb73f",
   "source_model": "lab/models/gpt2-spanish",
   "settings": {
     "repetition_penalty": 1.3,
@@ -23,7 +24,8 @@
     "steer_layers": [
       3,
       11
-    ]
+    ],
+    "loop_bias": 4.0
   },
   "files": {
     "model/config.json": "6faf0ac79b5010b887525e682b622cde4a8816b6940397424f2ba9bfee76c08f",
@@ -38,23 +40,32 @@
   },
   "fixtures": [
     {
+      "kind": "center",
+      "address": "babel-1:0:1:1:1:1",
+      "bits": 0,
+      "sha256": "ed3a9212136a406cf86f8a7356330ab6a9a58baee9fa726b718385caeddf4a1a"
+    },
+    {
       "kind": "random",
       "seed": "fixture-0",
-      "address": "babel-1:m6rhr6libzieve9pedybpd0p15gdom24pzl0tb7rioo1gttwl53cagvarf796qxtqmwq3ejcozq1y77bkiqc403hs1sn8etx6y80x4wy27xxt8pn65jf0wc9qwew0lvxn9gsn4spxxsf9cfqly1d7x9z03k1cxk83942dbnjbft9cnl9t3ia5ub3npnpkdvh51gbe74xur37f2nsz02144ygrr5hys2e419irzb41y09r80ddxepuh5pf9427iy7r3hb21vi1yabredh5pirzz5h3ct9ttkk4fpk5wio0rdt4x2chs2w17wc8kn16rarhqg3pzs3kzeb53hf5r4dy0gazzohzioixcc6utl3iyzc72t:1:2:24:353",
-      "sha256": "6d5471a89286b8ef77b77d5d2332b572fdf7be0fe16b9aaa6b60f3f41ae57df0"
+      "address": "babel-1:6rChqTSj2RGtWeu9a5iQtS8AeWZaxn3epkXATQCWTOr3uWlCwKOzETJEaatYvH0KAFFuJvAh7x4o5DfHb09ppLMx6LNEm5Fx5TUWHlE1u8CuN084ZprPRPNUY93oCggiA1AuevUtBTLHSRtMeLlEIBeVhupiaGkmlyv1ShPYDEFGHNK8Byw4iDPNElUmUqV9NLOMgN5oLy7JfO96rs7pfj0ZybOYriTNyjpl2MtGZ4v6H9JeU837kJPaIG2DyH92vQ8ZABCQTtzO5AsnxkqcBuXxBxgPcudyq81md9R6z9rd48bBt0wZOCTXfv5tuAHOYVWNHFf1skxlr70npIY48QZliwNamcHaLZlc5vvlaXaN0OCuBvOy3hGhhr35R3eZ792ujDrnTpLWl94M:1:5:7:315",
+      "bits": 2397,
+      "sha256": "bba0cf714a813f739478d16b4a0c83c231bf839b44da8f107b789aa5f7ef6d92"
     },
     {
       "kind": "random",
       "seed": "fixture-1",
-      "address": "babel-1:1sxlz4mmz3al2x8c68yagj2azg9wn5rsw22xiaokskamm7za2yqu7rkb82js2qig33cm39eydjp2amq5lt7374neqmbtnprfxzqq6hg50hzi3fa9tf8g1r6jdvxe5tsrekjj26kfo4452jmdzofx8zzjrddwks5wvrx0xjansk7oucqry33onr4g4f01nvgnmr1egtu7f0ois7xae13rktw7qoud9ii92c22g6aud9bp128ic70lps5jdah0g935h9umwgh0tjex54rqwx5mhvhbznbjrt5zh9z21wrlapf37qmbnd9hteedxpv223x1a2ymztgw31ouq0kwyurhqvtwzv906cwp5vucrac38ul77v5do7hf2b8ndjhiyfvfctksurdkif73ecx0943km4lri5qkctft3rtwfouiq73gs:2:1:4:58",
-      "sha256": "e52358f98db25477eaf9e8305dc738edd6e9e7e3b2cbaeea6d9f6cb2aaaf68ec"
+      "address": "babel-1:aZpXabCLJW6PnScOG0QlResULf6tgpOnWFCJSZhcrAjW0J8A1hHChKPEmUgZ6sIIKYVKpV9nBIAVsptKZ7bZDbsaJX1VUB23gKZTV36Aaw46qqy6KWl38YgnyCJpSNbtLaUxuJv812BGpalSr1C09PagSo7FxmEcB6tHsBkGB4D3okK8cAEbmJ77hhQmpfq6v5KoUgKT3nMasv2YFt0G5T7PxEGoDtCZrySHapCmbtuvUm3Q2RoPCOZAYUJW3ChNSCzSwgdIXSIKiDAOPFUyGiYRviWovEOEfMo9h8JlKehzDYRVmgH7DHaErsL7Eyvi4f4i0uH9sXawzGkDryca6:2:3:29:65",
+      "bits": 2048,
+      "sha256": "7e7b67d929e89a1cd750c6b898c2c9a7cd23b260db76429ebb01687dbd678d0e"
     },
     {
       "kind": "search",
       "query": "Hoy me desperté pensando en ti, y en la biblioteca infinita.",
       "seed": "0",
-      "address": "babel-1:17q5ub8h1crn7oqxq3rtxppek99tid4s6an2g97lk3ok75cxcj0rhdmqy1jibme4v5ft5sm3k0e8h9n413wcu5r8hnmih03mf9m8j8u9j6dxihjr2p25fhhdl3w1jft40gv96lzt3igjuhq24ol71k1qin68c50bqs9mgvm8ibg14kcogfizp8vd4vas048avftq77fifiigaquoc2349iq6i8k2w8zaorrgeotheeqp2df71166dzj8w0qltdinsdqco77e82lu0a0opr77ckk3n76nnn3do3eb3yosaru0w6jvi94f2fq1yjgttnp1s68m6tj1bqzs00zf292gudsruaoo3u0olo9lpk9uvob3kxz6f5jfkw6szaqi8kh61nxryyua223bpwxiwo2yty9bq1xnyafbb5yxrup:3:2:32:85",
-      "sha256": "5aa79faed6bc35ad0a50b4c90cbb8d5b1e752cbeeff66f48806b3e4bee5cceb8"
+      "address": "babel-1:B821YAVSeuBMUTnmEPHE9VeZ1Szjo3jH03q4AKIbWNvzPZlN5mEJza7e3viSSDVRTjcZ8BhOmizEbv9Th0CwNFkR5nroYGy8LAZz50b4BlDcBPPwpKtqQSFoTeYlXSzJxvuGD9taspQLzYRwsgD2yNhZqWkTo18TDDagb8uHxB7jNqUw0jELPPSvHw44iCeTdpDQM5ycjwItPckeHZ8mQPA8WNTPYffhj3QXB2ed3elRIDxGbNtTIEqQvrYacSYboMSNnWqJmCKwRyPBwXUL0CJbA7DIE7XHwTVwpVG4R3NYLFgXf9K750kUX6bp7QxJ1KEKw8E7so5Dr2PEOUbzC6P4x7KBEtKUJnFfu5TLuF3VPbTxB9SOsHkSVVwRo3dPfpzJuWA6a0lgiYPcdgDsGIv8uwHt0BbiiC7WudFujFoRByJSezuo:3:1:22:380",
+      "bits": 2612,
+      "sha256": "0c59785313aa3d6390222d96e53ec9c977a25a05e6200ceb4bf28958d1a47a89"
     }
   ]
 }
