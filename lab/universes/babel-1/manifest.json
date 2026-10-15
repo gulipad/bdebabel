@@ -1,7 +1,7 @@
 {
-  "id": "babel-lab-1",
-  "description": "First filtered lab universe: stock DeepESP GPT-2 124M, min-p 0.02, nudges, word penalties, steering against sexual and graphic-violence content",
-  "frozen": "2026-10-15T15:23:52+0200",
+  "id": "babel-1",
+  "description": "The first Library: stock DeepESP GPT-2 124M, min-p 0.02, layout nudges, word penalties (sexual 6, violence 6, profanity 3), activation steering against sexual and graphic-violence content",
+  "frozen": "2026-10-15T16:28:05+0200",
   "status": "lab (float MLX: bit-exact on this machine only)",
   "codec": "rans-bigint-1",
   "characters": "printable-1",
@@ -15,7 +15,7 @@
     "paragraph_bias": 1.5,
     "avoid_bias": 6.0,
     "violence_bias": 6.0,
-    "profanity_bias": 1.5,
+    "profanity_bias": 3.0,
     "steer": {
       "sexual": 1.0,
       "violence": 1.0
@@ -40,20 +40,20 @@
     {
       "kind": "random",
       "seed": "fixture-0",
-      "address": "babel-lab-1:m6rhr6libzieve9pedybpd0p15gdom24pzl0tb7rioo1gttwl53cagvarf796qxtqmwq3ejcozq1y77bkiqc403hs1sn8etx6y80x4wy27xxt8pn65jf0wc9qwew0lvxn9gsn4spxxsf9cfqly1d7x9z03k1cxk83942dbnjbft9cnl9t3ia5ub3npnpkdvh51gbe74xur37f2nsz02144ygrr5hys2e419irzb41y09r80ddxepuh5pf9427iy7r3hb21vi1yabredh5pirzz5h3ct9ttkk4fpk5wio0rdt4x2chs2w17wc8kn16rarhqg3pzs3kzeb53hf5r4dy0gazzohzioixcc6utl3iyzc72t:1:2:24:353",
+      "address": "babel-1:m6rhr6libzieve9pedybpd0p15gdom24pzl0tb7rioo1gttwl53cagvarf796qxtqmwq3ejcozq1y77bkiqc403hs1sn8etx6y80x4wy27xxt8pn65jf0wc9qwew0lvxn9gsn4spxxsf9cfqly1d7x9z03k1cxk83942dbnjbft9cnl9t3ia5ub3npnpkdvh51gbe74xur37f2nsz02144ygrr5hys2e419irzb41y09r80ddxepuh5pf9427iy7r3hb21vi1yabredh5pirzz5h3ct9ttkk4fpk5wio0rdt4x2chs2w17wc8kn16rarhqg3pzs3kzeb53hf5r4dy0gazzohzioixcc6utl3iyzc72t:1:2:24:353",
       "sha256": "6d5471a89286b8ef77b77d5d2332b572fdf7be0fe16b9aaa6b60f3f41ae57df0"
     },
     {
       "kind": "random",
       "seed": "fixture-1",
-      "address": "babel-lab-1:329enjil2m3e1ao54lcziae237ejmktwqn27t8kn8xilkue4bkwsso0ddqdvkd7hsagrj6lqfisfo8ndeop9quvx6otbpw5g3lbvhvkmb17qty4bcyupbmlxzatapz2n0riyxbnpne4jkabgm5kqmqh421vht3hxn7u8bx42fr9n9dy5nt0gfwl01f5ryre0f787iif3se18y58pxdkghlao1oc71dhdmlvagvyxjj5w7fho7tkyy8znp5h2aaa8opeiyd9qxf2ntt6swz1au3u0bv62np34atmmfljbfoaocfvkitomnpac7gz7qizi029p11a3azqta6uvmvuu2x4m9vm5q1jxh2r7oigol6fvvfivc0l9w0rtbtyb7xi89am4qp0aajbfklu50o1l6k3ygrojycrfol9tze7r1tgms:3:2:32:409",
-      "sha256": "65424d981951068f3985ce672fa39a04088f6d557e77ae29702fe41de89adec3"
+      "address": "babel-1:1sxlz4mmz3al2x8c68yagj2azg9wn5rsw22xiaokskamm7za2yqu7rkb82js2qig33cm39eydjp2amq5lt7374neqmbtnprfxzqq6hg50hzi3fa9tf8g1r6jdvxe5tsrekjj26kfo4452jmdzofx8zzjrddwks5wvrx0xjansk7oucqry33onr4g4f01nvgnmr1egtu7f0ois7xae13rktw7qoud9ii92c22g6aud9bp128ic70lps5jdah0g935h9umwgh0tjex54rqwx5mhvhbznbjrt5zh9z21wrlapf37qmbnd9hteedxpv223x1a2ymztgw31ouq0kwyurhqvtwzv906cwp5vucrac38ul77v5do7hf2b8ndjhiyfvfctksurdkif73ecx0943km4lri5qkctft3rtwfouiq73gs:2:1:4:58",
+      "sha256": "e52358f98db25477eaf9e8305dc738edd6e9e7e3b2cbaeea6d9f6cb2aaaf68ec"
     },
     {
       "kind": "search",
       "query": "Hoy me desperté pensando en ti, y en la biblioteca infinita.",
       "seed": "0",
-      "address": "babel-lab-1:17q5ub8h1crn7oqxq3rtxppek99tid4s6an2g97lk3ok75cxcj0rhdmqy1jibme4v5ft5sm3k0e8h9n413wcu5r8hnmih03mf9m8j8u9j6dxihjr2p25fhhdl3w1jft40gv96lzt3igjuhq24ol71k1qin68c50bqs9mgvm8ibg14kcogfizp8vd4vas048avftq77fifiigaquoc2349iq6i8k2w8zaorrgeotheeqp2df71166dzj8w0qltdinsdqco77e82lu0a0opr77ckk3n76nnn3do3eb3yosaru0w6jvi94f2fq1yjgttnp1s68m6tj1bqzs00zf292gudsruaoo3u0olo9lpk9uvob3kxz6f5jfkw6szaqi8kh61nxryyua223bpwxiwo2yty9bq1xnyafbb5yxrup:3:2:32:85",
+      "address": "babel-1:17q5ub8h1crn7oqxq3rtxppek99tid4s6an2g97lk3ok75cxcj0rhdmqy1jibme4v5ft5sm3k0e8h9n413wcu5r8hnmih03mf9m8j8u9j6dxihjr2p25fhhdl3w1jft40gv96lzt3igjuhq24ol71k1qin68c50bqs9mgvm8ibg14kcogfizp8vd4vas048avftq77fifiigaquoc2349iq6i8k2w8zaorrgeotheeqp2df71166dzj8w0qltdinsdqco77e82lu0a0opr77ckk3n76nnn3do3eb3yosaru0w6jvi94f2fq1yjgttnp1s68m6tj1bqzs00zf292gudsruaoo3u0olo9lpk9uvob3kxz6f5jfkw6szaqi8kh61nxryyua223bpwxiwo2yty9bq1xnyafbb5yxrup:3:2:32:85",
       "sha256": "5aa79faed6bc35ad0a50b4c90cbb8d5b1e752cbeeff66f48806b3e4bee5cceb8"
     }
   ]
