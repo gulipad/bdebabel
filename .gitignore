@@ -1,0 +1,8 @@
+node_modules/
+corpus/
+model/
+lab/out/
+lab/models/
+data/
+lab/universes/*/model/
+__pycache__/
