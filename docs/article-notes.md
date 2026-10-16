@@ -99,6 +99,24 @@ Last updated: 2026-10-15 (universe `babel-1`, codec `rans-2`).
   selects nothing; all the information is in the choice of where to look. Borges hinted at this
   in "La biblioteca total". The address is that choice, and its length is how much choosing it
   took.
+- **Is the model just nicer padding? No: it has two roles.** (1) As a *padding writer* in search,
+  it replaces Basile's random characters with prose; on its own that is cosmetic (under Basile's
+  uniform code, prose padding would cost exactly as much as noise). (2) As the *code*, it defines
+  the probability of every page, and the address is the page compressed under it: Shannon's
+  source-coding theorem, optimal length = −log₂ P. Language modeling is compression (Delétang et
+  al., "Language Modeling Is Compression", 2023). Short URLs need both at once: padding the model
+  expects *and* a code built from the model's expectations. Random padding under our code costs
+  ~19,000 bits; prose padding under Basile's code ~15,500; prose under our code ~2,400.
+- **A two-part code.** Every library of everything splits information into what sender and
+  receiver share in advance (the model, downloaded once) and what each URL carries. Basile shares
+  nothing, so each URL carries a whole page. We share the Spanish language, so each URL carries
+  only the news: the page's complexity *given* the model (conditional Kolmogorov complexity).
+  Distance, geography and natural browsing all fall out of this measure, not of the padding.
+- **Most of a search URL is not your sentence.** Your words cost ~100–300 bits; the remaining
+  ~2,000 are the dice rolls that wrote the padding. That's the price of being a real page among
+  many instead of a recipe (which would be shorter but is the "special room" we rejected). Make
+  the padding perfectly predictable and URLs shrink, but every page collapses toward the
+  repetitive center: the padding's randomness is what makes the Library varied.
 - **Searching measures your own words.** The address of a search result grows with how
   surprising your text is to the Library. "Te quiero" is cheap (the Library expected it);
   your full name is expensive; a string of random keystrokes is the most expensive of all.
@@ -272,6 +290,62 @@ probability mass pools when nothing pushes back: the center itself is one.
 backwards from how they read, because the held-out text came from the same distribution as the
 fine-tuning data. From then on: judge by reading, with numbers as sanity checks.
 
+## 8b. Training our own cartographer (2026-10-16)
+
+**The corpus is the book collection, cleaned.** 83,177 pages (~65M tokens) of Spanish prose from
+Gutenberg, Wikisource and Elejandría EPUBs. A word filter ("pecho", "beso", "cadáver") had thrown away
+27k innocent pages; a judge model reading each flagged page in context dropped only 1.4% (explicit
+erotica or explicit gore). "Pecho" is mostly courage; "me desnudé" is a sailor drying his clothes. The
+same judge separated Golden-Age Spanish (Quijote, Conde Lucanor) from 19th-century prose that only
+looks old ("sentóse", "díjole"), and whole books, not pages, were dropped when they were archaic.
+
+**Little data, many passes.** A 66M-parameter model read the same books 16 times, held back from
+memorising by a strong weight decay (8× the usual, following Kim et al. 2025). Result: 1.138 bits per
+character on unseen pages, slightly better than the 2-billion-parameter Spanish model Salamandra on a
+similar slice (1.156). A tiny specialist beats a big generalist on its own ground. Averaging the
+last three weight snapshots gives a free gain (1.129).
+
+**It generalizes to books it never saw.** Sixteen whole books were kept out of training. On them the
+model scores 1.15 against 1.13 on unseen pages of familiar books: only ~1–2% worse. It learned
+Spanish prose, not just these novels, although it does borrow their characters (Villefort, Bergeret,
+Nela): never their sentences (0 of 43 million 13-word sequences copied in any page we checked).
+
+**The teacher who knew less.** Distilling from Salamandra made the student worse (1.183), and its
+pages started in English: before reading a word, the multilingual teacher expects a web document, and
+the student learned to open with "The". A teacher only helps if it knows the territory better than
+the student would alone.
+
+**The alphabet already knows Spanish.** An untrained model with random weights writes "esperanza
+tejados envueltos ¿…": no grammar, but its letters are word-pieces cut from the books, so even noise
+comes out Spanish-flavoured.
+
+**The Library's rules matter more than the last decimal.** Raw samples loop ("¡Morir yo! ¡Morir yo!"),
+drift and invent words. Read through the Library (address decoding plus loop breaker, repetition
+penalty, min-p and nudges), the same model's pages lose all repetition and score clearly higher with a
+blind judge. The cartographer and the Library's grammar of reading are two halves of one design.
+
+**Writing backwards, for search.** Search must place your sentence on a page that leads naturally
+into it: the ideal result is drawn from *all* pages containing your sentence, in proportion to how
+likely each is. Writing the text before the sentence blindly, then forcing the sentence in, produced
+seams ("¡SUP te quiero"). So the same model was also trained to write right to left (a quarter of the
+pages reversed, with a direction mark). Writing forwards did not suffer at all (1.1285 vs 1.1288 for a
+forward-only twin; slightly better on unseen books), and the model can now write the text that
+precedes a sentence: "—Mira, hija mía —añadió—; yo **te quiero** a ti"; "—Jusepa —dijo— que pasado
+**mañana es tu cumpleaños**; no lo dudes, que hoy es sábado." The address is still computed from the
+finished page, forwards, so this changes how search finds a page, never which pages exist.
+In the working search the backward writer drafts whole paragraphs that lead into the sentence, the
+forward model weighs 16 drafts and one is drawn by weight: "Y, sin embargo, **tenía miedo de la
+oscuridad**, de la soledad…"; "—No —dijo el mayor—, **no lo sé**, aunque me parece que has perdido el
+juicio." The pages it finds sit 2,191 and 2,333 bits from the center: as close as a page you'd
+stumble on by wandering (typical: ~2,340). Your sentence is placed where the Library would have put
+it anyway.
+
+**What it writes.** Grammatical, novel-paced 19th-century prose with dialogue, consistent names within
+a page, and drift over a page ("la más llamativa república del tamaño de una iglesia").
+
+**Cost.** Rented GPUs for a day of experiments: about $15. Three models trained from scratch, a
+teacher pass, and the forward/backward comparison.
+
 ## 9. What's gained and lost compared with Basile
 
 Lost:
@@ -303,8 +377,10 @@ model's taste into part of the story.
 - The safety-net weight is 1 in 2²⁰ (about a million). Should the void be more visible (1 in a
   thousand) or legendary (1 in a billion)?
 - Calibrating the distance rings; naming the unit (*pasos*?).
-- Search quality: start the sentence at a natural break, pick the best of several drafts by
-  P(sentence | text before), calmer surroundings. Deterministic, versioned with the universe.
+- Search as posterior sampling: the backward writer drafts ~48 tokens leading into the sentence, the
+  forward model weighs several drafts, and one is drawn in proportion to its probability. Open: how
+  many drafts a phone can afford, and the seam where forward text meets the backward bridge (a
+  fill-in-the-middle model would see both sides).
 - Titles for books, and title search (a model-written title from part of the book's number).
 - The integer engine and the first truly public, bit-exact universe.
 - Copyright: the stock model was trained partly on contemporary e-books (a page reproduced an
@@ -329,3 +405,12 @@ model's taste into part of the story.
   Arditi, A. et al. Refusal is mediated by a single direction (2024).
 - Bavarian, M. et al. Efficient training of language models to fill in the middle (2022).
 - Askell, A. et al. (2021) and Snell, C. et al. (2022): context distillation.
+- Kim, K., Kotha, S., Liang, P., Hashimoto, T. Pre-training under infinite compute (2025), arXiv:2509.14786.
+- Chai, Y. & Xiong, H. What is a repeated token worth? (2026), arXiv:2610.05591.
+- Chen, M. K. et al. Demystifying training-time augmentation for data-constrained LM pretraining (2026), arXiv:2606.16246.
+- Papadopoulos, V. et al. Arrows of time for large language models (2024), arXiv:2401.17505.
+- Golovneva, O. et al. Reverse training to nurse the reversal curse (2024), arXiv:2403.13799.
+- Busbridge, D. et al. Distillation scaling laws (2025), arXiv:2502.08606.
+- Anshumann et al. Sparse logit sampling (2025), arXiv:2503.16870.
+- Lew, A. et al. Sequential Monte Carlo steering of LLMs using probabilistic programs (2023), arXiv:2306.03081.
+- Q Labs. NanoGPT Slowrun: fixed-data, many-epoch training records (2026), github.com/qlabs-eng/slowrun.

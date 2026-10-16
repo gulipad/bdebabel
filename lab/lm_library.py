@@ -54,6 +54,15 @@ def normalize(text: str) -> tuple[str, str]:
 
 SCALE = 1 << 32
 
+
+def _bytes_to_unicode() -> dict[int, str]:
+    """GPT-2's byte-level BPE alphabet: each byte maps to a printable character."""
+    bs = list(range(ord("!"), ord("~") + 1)) + list(range(ord("¡"), ord("¬") + 1)) + list(range(ord("®"), ord("ÿ") + 1))
+    cs, n = bs[:], 0
+    for b in range(256):
+        if b not in bs: bs.append(b); cs.append(256 + n); n += 1
+    return dict(zip(bs, map(chr, cs)))
+
 # --- the fallback writer: one character at a time, independently ---
 # Weights (per ~1000) roughly follow Spanish text; every other character of the alphabet gets 1.
 _FB_WEIGHTS = {" ": 160, "e": 115, "a": 105, "o": 75, "s": 65, "r": 58, "n": 56, "i": 52, "d": 46,
@@ -88,29 +97,75 @@ def fallback_encode(text: str) -> int:
     return x
 
 
+class _StudentCache:
+    """KV cache holder for lab/student.py models, created fresh where mlx-lm would make a prompt cache."""
+    def __init__(self): self.kv = None
+
+
+class _StudentLM:
+    """Adapts a lab/student.py model to the call the Library makes: model(ids, cache=cache) -> logits."""
+    def __init__(self, model): self.m = model
+
+    def __call__(self, ids, cache=None):
+        logits, kv = self.m(ids, cache.kv if cache is not None else None)
+        if cache is not None: cache.kv = kv
+        return logits
+
+
+def load_model(path: Path):
+    """(model, hf tokenizer, max context, new-cache function) for an mlx-lm model or a lab/student.py model."""
+    cfg = json.loads((path / "config.json").read_text())
+    if "layers" in cfg and "dim" in cfg and "model_type" not in cfg:  # our own student (lab/train_student*.py)
+        import sys; sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from student_config import Config
+        from student import Student
+        from transformers import AutoTokenizer
+        c = Config(**{k: v for k, v in cfg.items() if k in Config.__dataclass_fields__})
+        m = Student(c); m.load_weights(str(path / "model.safetensors"), strict=True)
+        return _StudentLM(m), AutoTokenizer.from_pretrained(str(path)), c.context, _StudentCache
+    model, wrapper = load(str(path))
+    cfg = cfg.get("text_config", cfg)
+    # Models with short context (GPT-2: 512–1024 positions) need a sliding window.
+    ctx = min(cfg.get("n_positions") or cfg.get("max_position_embeddings") or 1 << 20, 4096)
+    return model, wrapper._tokenizer, ctx, lambda: make_prompt_cache(model)
+
+
 class LMLibrary:
     def __init__(self, repo: str, temperature=1.0, top_p=1.0, repetition_penalty=1.0, window=128, preamble="", preamble_eos=False,
                  min_p=0.0, dialogue_bias=0.0, paragraph_bias=0.0, paragraph_min=200, avoid_bias=0.0,
                  violence_bias=0.0, profanity_bias=0.0, steer=None, steer_layers=(3, 11), steer_dir=None,
-                 loop_bias=0.0):
+                 loop_bias=0.0, instruction=None, persona_bias=0.0, opening_temperature=1.0, opening_tokens=0):
         path = Path(repo) if Path(repo).is_dir() else Path(snapshot_download(repo))
-        self.model, wrapper = load(str(path))
-        self.tok = wrapper._tokenizer
-        cfg = json.loads((path / "config.json").read_text())
-        cfg = cfg.get("text_config", cfg)
-        # Models with short context (GPT-2: 512–1024 positions) need a sliding window.
-        self.max_ctx = min(cfg.get("n_positions") or cfg.get("max_position_embeddings") or 1 << 20, 4096)
+        self.model, self.tok, self.max_ctx, self._new_cache = load_model(path)
         self.temperature, self.top_p = temperature, top_p
         self.penalty, self.window = repetition_penalty, window
         self.min_p, self.dialogue_bias = min_p, dialogue_bias
         self.paragraph_bias, self.paragraph_min = paragraph_bias, paragraph_min
         self.avoid_bias, self.violence_bias, self.profanity_bias = avoid_bias, violence_bias, profanity_bias
         self.loop_bias = loop_bias
+        self.persona_bias = persona_bias
+        self.opening_temperature, self.opening_tokens = opening_temperature, opening_tokens
         self.steer_dir = Path(steer_dir) if steer_dir else Path(__file__).resolve().parent / "steer"
-        if steer: self._install_steering(steer, tuple(steer_layers))
+        if steer:
+            if isinstance(self.model, _StudentLM): raise ValueError("activation steering is only implemented for GPT-2 models")
+            self._install_steering(steer, tuple(steer_layers))
         self.bos = [self.tok.bos_token_id] if self.tok.bos_token_id is not None else []
         # A hidden, fixed preamble the model reads before every page (not part of the page).
         # It steers the voice; being constant, it is simply part of the frozen universe.
+        if instruction:
+            # Instruction-tuned models: a fixed, neutral instruction in the model's chat format,
+            # then the model writes the page as its answer. Part of the universe, like a preamble.
+            kw = {"enable_thinking": False} if "enable_thinking" in (self.tok.chat_template or "") else {}
+            chat = self.tok.apply_chat_template([{"role": "user", "content": instruction}],
+                                                add_generation_prompt=True, tokenize=False, **kw)
+            self.bos = self.tok.encode(chat, add_special_tokens=False)
+        if instruction:
+            # Instruction-tuned models: a fixed, neutral instruction in the model's chat format,
+            # then the model writes the page as its answer. Part of the universe, like a preamble.
+            kw = {"enable_thinking": False} if "enable_thinking" in (self.tok.chat_template or "") else {}
+            chat = self.tok.apply_chat_template([{"role": "user", "content": instruction}],
+                                                add_generation_prompt=True, tokenize=False, **kw)
+            self.bos = self.tok.encode(chat, add_special_tokens=False)
         if preamble:
             self.bos += self.tok.encode(preamble, add_special_tokens=False)
             # End-of-document after the preamble: the page reads as a new, unrelated document,
@@ -122,8 +177,7 @@ class LMLibrary:
         # GPT-2-style byte-level BPE spells " a" as "Ġa"; SentencePiece spells it "▁a".
         byte_level = self.tok.convert_ids_to_tokens(self.tok.encode(" a", add_special_tokens=False))[0].startswith("Ġ")
         if byte_level:
-            from transformers.models.gpt2.tokenization_gpt2 import bytes_to_unicode
-            unbyte = {v: k for k, v in bytes_to_unicode().items()}
+            unbyte = {v: k for k, v in _bytes_to_unicode().items()}
         ids, texts, natural = [], [], []
         special = set(self.tok.all_special_ids)  # a computed property: never call it in the loop
         for i, p in enumerate(pieces):
@@ -167,6 +221,12 @@ class LMLibrary:
         PROFANITY = set("mierda joder jodido jodida puta puto putas putos coño cabrón cabrones hostia hostias gilipollas cojones carajo".split())
         self.violent = np.array([t.strip().lower().startswith(VIOLENCE) and len(t.strip()) >= 4 for t in texts])
         self.profane = np.array([t.strip().lower() in PROFANITY for t in texts])
+        # Assistant persona (instruction-tuned models): conversational openers at the start of a
+        # page, and markdown or remarks to the reader anywhere. Form, not content.
+        OPENERS = ("claro", "¡claro", "aquí", "¡aquí", "hola", "¡hola", "por supuesto", "sí,", "**", "#", "título", "---", "*")
+        META = ("**", "##", "---", "___", "nota:", "(nota", "¿te gustaría", "¿qué te parece", "espero que", "adjunt", "aquí tienes", "```")
+        self.opener = np.array([t.strip().lower().startswith(OPENERS) for t in texts])
+        self.meta = np.array([any(m in t.lower() for m in META) or t.strip() in ("*", "**", "#", "##", "---") for t in texts])
         # For case-insensitive search: tokens grouped by their lowercased first character.
         self.lower = [t.lower() for t in texts]
         self.by_first: dict[str, list[int]] = {}
@@ -201,6 +261,9 @@ class LMLibrary:
                 d = np.load(root / f"{name}.npz")
                 blocks[i]._steer.append((mx.array(d["unit"][i]), float(d["neutral"][i]), float(strength)))
 
+    def _page_start(self, history) -> bool:
+        return len(history) == 0
+
     def _dist(self, logits: mx.array, remaining: int, history: list[int] = ()):
         z = np.array(logits.astype(mx.float32))[self.ids].astype(np.float64)
         if self.penalty != 1.0 and history:
@@ -209,7 +272,10 @@ class LMLibrary:
             recent = np.array(sorted({self.index[t] for t in history[-self.window:] if t in self.index}), dtype=np.int64)
             recent = recent[self.penalizable[recent]] if len(recent) else recent
             z[recent] = np.where(z[recent] > 0, z[recent] / self.penalty, z[recent] * self.penalty)
-        z = z / self.temperature
+        # Creative opening: the first few tokens of a page are drawn more adventurously, so pages
+        # don't all fall into the same opening (and the same story). Content-free and deterministic.
+        t = self.opening_temperature if len(history) < self.opening_tokens else self.temperature
+        z = z / t
         if self.dialogue_bias and history and self.ends_line[self.index.get(history[-1], 0)]:
             z[self.opens_dialogue] -= self.dialogue_bias  # at a new paragraph, open dialogue a bit less often
         if self.loop_bias and len(history) >= 4:
@@ -222,6 +288,10 @@ class LMLibrary:
                 if len(tail) == reps * period and tail == tail[-period:] * reps and tail[-period] in self.index:
                     z[self.index[tail[-period]]] -= self.loop_bias
                     break
+        if self.persona_bias:
+            z[self.meta] -= self.persona_bias
+            if self._page_start(history):
+                z[self.opener] -= self.persona_bias
         if self.avoid_bias:
             z[self.avoid] -= self.avoid_bias
         if self.violence_bias:
@@ -278,7 +348,7 @@ class LMLibrary:
         """
         seen = list(context)
         def restart():
-            cache = make_prompt_cache(self.model)
+            cache = self._new_cache()
             window = seen[-(self.max_ctx // 2):] if len(seen) + len(self.bos) >= self.max_ctx else seen
             return cache, len(self.bos) + len(window), self.model(mx.array([self.bos + window]), cache=cache)[0, -1]
         cache, used, logits = restart()
@@ -432,6 +502,104 @@ class LMLibrary:
         head = before + q_toks
         after = self.decode(rng.getrandbits(PAGE_CHARS * 16), PAGE_CHARS - offset - len(q), head)[0]
         return self.text_of(head) + self.text_of(after), offset + 1
+
+    # --- search with a backward writer (models trained with <|r2l|>; lab/train_student_torch.py --r2l) ---
+    #
+    # Target: a page drawn from all pages that contain the query, in proportion to their probability in
+    # this Library. The far part of the page (F) comes from the Library itself (exact), the model's
+    # right-to-left mode proposes N short bridges that lead into the query, each is weighted by
+    # p_Library(bridge + query | F) / q_backward(bridge), one is drawn by weight, and the Library
+    # writes the rest (exact). Approximations: F is not reweighted, and the bridge's backward draft
+    # doesn't see F (the seam between them is corrected only through the weights).
+
+    def _fork(self, cache):
+        c = self._new_cache()
+        if isinstance(self.model, _StudentLM): c.kv = None if cache.kv is None else list(cache.kv)
+        else: raise ValueError("search_bridge needs a lab/student.py model")
+        return c
+
+    def _prefix_state(self, items):
+        """(cache, logits, history) after the page start + items, for scoring continuations."""
+        ids = self.bos + self.ids_of(items)
+        cache = self._new_cache()
+        logits = self.model(mx.array([ids]), cache=cache)[0, -1]
+        return cache, logits, self.ids_of(items)
+
+    def _logp(self, state, items, remaining) -> float:
+        """Natural-log probability of items continuing from state, under the Library's own distribution."""
+        cache, logits, hist = state
+        cache, hist, lp, ESC = self._fork(cache), list(hist), 0.0, len(self.ids)
+        for j, it in enumerate(items):
+            freq, start, order, csum = self._dist(logits, remaining, hist)
+            k = ESC if isinstance(it, str) else self.index[it]
+            lp += math.log(int(freq[k]) / int(csum[-1]))
+            if isinstance(it, str): lp += -math.log(len(ALPHABET)); new = self.ids_of([it]); remaining -= 1
+            else: new = [it]; remaining -= int(self.lens[k])
+            hist += new
+            if j + 1 < len(items):
+                for t in new: logits = self.model(mx.array([[t]]), cache=cache)[0, -1]
+        return lp
+
+    def _backward(self, q_toks, n, allow_start, rng, min_p=0.005, stop_at_paragraph=False):
+        """Draws up to n tokens right to left from the query; returns (forward-order tokens, log q, reached a boundary).
+        The draft may end at the page start (allow_start) or, with stop_at_paragraph, at the start of a paragraph,
+        so it joins what comes before at a natural boundary."""
+        r2l, eos = self.tok.convert_tokens_to_ids("<|r2l|>"), self.tok.eos_token_id
+        cache = self._new_cache()
+        logits = self.model(mx.array([[r2l] + q_toks[::-1]]), cache=cache)[0, -1]
+        allowed = np.zeros(len(self.tok), bool); allowed[self.ids] = True
+        if allow_start: allowed[eos] = True
+        out, logq = [], 0.0
+        for _ in range(n):
+            z = np.array(logits.astype(mx.float32)).astype(np.float64); z[~allowed] = -np.inf
+            p = np.exp(z - z.max()); p /= p.sum()
+            p = np.where(p >= min_p * p.max(), p, 0.0); p /= p.sum()
+            t = int(np.searchsorted(np.cumsum(p), rng.random() * p.sum()))
+            t = min(t, len(p) - 1)
+            logq += math.log(p[t])
+            if t == eos: return out[::-1], logq, True
+            if stop_at_paragraph and out and "\n" in self.texts[self.index[t]]: return out[::-1], logq, True
+            out.append(t); logits = self.model(mx.array([[t]]), cache=cache)[0, -1]
+        return out[::-1], logq, False
+
+    def search_bridge(self, query: str, seed: str, n: int = 16, bridge: int = 96) -> tuple[str, int, dict]:
+        q, removed = normalize(query)
+        if removed: print(f"(la Biblioteca solo guarda el alfabeto latino: se omitieron {removed!r})")
+        rng = random.Random(f"{seed}|{q.lower()}")
+        q = " " + q.strip()
+        q_toks = self.canonical(q)
+        if any(isinstance(t, str) for t in q_toks): return (*self.search(query, seed), {"fallback": "escape"})
+        parts, rejected, tries = [], 0, 0
+        while not parts and tries < 3:  # a fresh far part if no draft joined it
+            tries += 1
+            far_chars = rng.randrange(0, max(1, PAGE_CHARS - len(q) - 4 * bridge))
+            far = self.decode(rng.getrandbits(far_chars * 16 + 64), far_chars)[0] if far_chars else []
+            # Cut the far part back to its last paragraph break: the bridge then starts a paragraph, never mid-word.
+            cut = max((i + 1 for i, t in enumerate(far) if not isinstance(t, str) and self.texts[self.index[t]].endswith("\n")), default=0)
+            far = far[:cut]
+            state = self._prefix_state(far)
+            for _ in range(n):
+                b, logq, joined = self._backward(q_toks, bridge, allow_start=not far, rng=rng, stop_at_paragraph=bool(far))
+                if not joined: rejected += 1; continue  # the draft never reached a paragraph (or page) start
+                first = self.text_of(b + q_toks).lstrip(" ")
+                if not first[:1] or not (first[0].isupper() or first[0] in "—-«¿¡\"“"): rejected += 1; continue
+                head_text = self.text_of(far) + self.text_of(b)
+                # The proposal is only meaningful if the forward tokenizer writes the same tokens.
+                if self.canonical(head_text + q)[: len(far) + len(b)] != far + b:
+                    rejected += 1; continue
+                if len(head_text) + len(q) > PAGE_CHARS: rejected += 1; continue
+                lp = self._logp(state, b + q_toks, PAGE_CHARS - len(self.text_of(far)))
+                parts.append((lp - logq, b, far))
+        if not parts: return (*self.search(query, seed), {"fallback": "no valid bridge", "rejected": rejected})
+        w = np.array([p[0] for p in parts]); w = np.exp(w - w.max()); w /= w.sum()
+        ess = float(1 / (w ** 2).sum())
+        k = int(np.searchsorted(np.cumsum(w), rng.random())); k = min(k, len(parts) - 1)
+        far = parts[k][2]
+        head = far + parts[k][1] + q_toks
+        used = len(self.text_of(head))
+        after = self.decode(rng.getrandbits(PAGE_CHARS * 16), PAGE_CHARS - used, head)[0]
+        page = self.text_of(head) + self.text_of(after)
+        return page, used - len(q) + 1, {"particles": len(parts), "rejected": rejected, "tries": tries, "ess": round(ess, 2)}
 
 
 # --- address formatting (mirror of src/address.ts) ---

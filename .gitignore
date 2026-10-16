@@ -6,3 +6,6 @@ lab/models/
 data/
 lab/universes/*/model/
 __pycache__/
+lab/adapters/
+remote/*.tgz
+remote/runs/
