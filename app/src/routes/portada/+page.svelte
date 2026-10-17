@@ -7,8 +7,9 @@
 	 * giving its shelves back, while others ink in elsewhere. The pointer leaves its mark on
 	 * the plan, in one of two ways under test: it wears the ink away, and the plan is drawn back (the default), or
 	 * (#presion) near it the walls are drawn a touch heavier and less steady, as if the pen pressed there. The
-	 * sheet arrives worn away and the plan melts in in patches, with no lettering yet; then the clearing's lines
-	 * stream in, and a little later the galleries' bands begin.
+	 * sheet arrives worn away and the plan melts in in patches, with no lettering yet; then the heart of the
+	 * clearing melts in (a dark pool of ink with the title left unstained in it, or, with #limpio, the title alone),
+	 * then the clearing's lines stream in, and a little later the galleries' bands begin.
 	 */
 	import { onMount } from 'svelte';
 	import {
@@ -24,6 +25,7 @@
 		inkLayer,
 		makePaper,
 		NIB,
+		pool,
 		samplePath,
 		seeded,
 		stroke,
@@ -64,7 +66,8 @@
 		melting = 0; // how much of the entrance's deepest wear is still to be drawn back
 	const PAUSE_MS = 500, // ms after the plan has melted in before the clearing's lines start
 		CLEARING_MS = 45, // ms between letters of the clearing's lines, written as one loop, the outer line first
-		BANDS_AFTER = 2500; // ms after the clearing's lines start before the first band
+		BANDS_AFTER = 2500, // ms after the clearing's lines start before the first band
+		HEART_MS = 3500; // ms for the heart of the clearing to melt in, before its lines start
 
 	const sheet = (w: number, h: number) => {
 		const c = document.createElement('canvas');
@@ -224,7 +227,8 @@
 			spot = sheet(reach * 2, reach * 2);
 
 		// wearing the ink away: a coarse field of wear, and the order the ink goes in, blotchy and raised fibres first
-		const dissolve = location.hash !== '#presion';
+		const dissolve = !location.hash.includes('presion'),
+			plain = location.hash.includes('limpio');
 		const bare = sheet(w, h);
 		compose(bare, paper, []);
 		// the clearing's lines as ink alone, to multiply on top of everything once they stream in
@@ -286,7 +290,7 @@
 		const lettersFrom = (t: number) => {
 			melting = 0;
 			clearingAt = t + PAUSE_MS;
-			bandsAt = clearingAt + BANDS_AFTER;
+			bandsAt = clearingAt + HEART_MS + BANDS_AFTER;
 		};
 		if (still) [clearingAt, bandsAt] = [-Infinity, -Infinity];
 		else if (!entered && deepest > 0) {
@@ -300,7 +304,7 @@
 		compose(after, paper, [...layers, { c: letters.c, ink: SEPIA, strength: 1.15 }]);
 
 		// one drop per letter, at the middle of its body, due in turn along its line (ms after the line starts)
-		type Drop = { x: number; y: number; r: number; due: number };
+		type Drop = { x: number; y: number; r: number; due: number; /** ms to melt in */ dur?: number };
 		const drnd = seeded(7);
 		const dropsOf = (ring: Extract<Mark, { kind: 'ring' }>, step: number, lag = 0): Drop[] =>
 			ringLetters(letters.c, ring).flatMap((m, i) => {
@@ -331,6 +335,8 @@
 			written: number;
 			field?: { idx: Int16Array; wgt: Float32Array; ord: Float32Array };
 			mask?: { c: CanvasRenderingContext2D; img: ImageData; dry: boolean };
+			/** a full-resolution sheet the size of the mask, for inking through it */
+			spot?: CanvasRenderingContext2D;
 		}
 		const strandOf = (drops: Drop[]): Strand => {
 			const pad = Math.max(0, ...drops.map((d) => d.r)) + 2,
@@ -344,7 +350,7 @@
 				y0,
 				sw: Math.max(1, Math.ceil((Math.max(...xs) + pad - x0) / 2) || 1),
 				sh: Math.max(1, Math.ceil((Math.max(...ys) + pad - y0) / 2) || 1),
-				written: Math.max(0, ...drops.map((d) => d.due)) + BLOOM_MS
+				written: Math.max(0, ...drops.map((d) => d.due + (d.dur ?? BLOOM_MS)))
 			};
 		};
 		const fieldOf = (st: Strand) => {
@@ -394,7 +400,7 @@
 			if (m.dry && settled) return m.c;
 			const f = fieldOf(st),
 				here = st.drops.map((d) =>
-					Math.min(going, Math.max(0, Math.min(1, (e - d.due) / BLOOM_MS)))
+					Math.min(going, Math.max(0, Math.min(1, (e - d.due) / (d.dur ?? BLOOM_MS))))
 				),
 				a = m.img.data;
 			for (let p = 0; p < st.sw * st.sh; p++) {
@@ -421,7 +427,37 @@
 					return [...ds, ...dropsOf(m, CLEARING_MS, lag)];
 				}, [])
 		);
-		const cspot = sheet(clearing.sw * 2, clearing.sh * 2);
+
+		// the heart of the clearing: the title, either left unstained in a pool of ink or written in ink alone
+		const [hx, hy] = at(scene.centre.c),
+			hr = scene.centre.r * k;
+		const titled = inkLayer(w, h);
+		draw(titled.c, scene.centre.title);
+		const heartInk = sheet(w, h);
+		if (plain) {
+			displace(titled.c, w, h, k);
+			compose(heartInk, white, [{ c: titled.c, ink: IRON_GALL, strength: 1.2, tooth: 0.4 }]);
+		} else {
+			const pond = inkLayer(w, h);
+			pool(pond.c, paper, { cx: hx, cy: hy, r: hr, unit: k, reserve: titled.c });
+			compose(heartInk, white, [{ c: pond.c, ink: IRON_GALL, strength: 1, tooth: 0.5 }]);
+		}
+		// it melts in from the middle out, as one drop reaching the whole of it
+		const heart = strandOf([{ x: hx, y: hy, r: hr * 1.6, due: 0, dur: HEART_MS }]);
+
+		// a strand's ink, through its mask, multiplied onto the sheet on top of everything (nothing wears it away)
+		const inkThrough = (st: Strand, e: number, ink: CanvasRenderingContext2D) => {
+			if (e <= 0 || !st.drops.length) return;
+			const [W, H] = [st.sw * 2, st.sh * 2];
+			const spot = (st.spot ??= sheet(W, H));
+			spot.globalCompositeOperation = 'copy';
+			spot.drawImage(maskOf(st, e, 1).canvas, 0, 0, W, H);
+			spot.globalCompositeOperation = 'source-in';
+			spot.drawImage(ink.canvas, st.x0, st.y0, W, H, 0, 0, W, H);
+			out.globalCompositeOperation = 'multiply';
+			out.drawImage(spot.canvas, st.x0, st.y0);
+			out.globalCompositeOperation = 'source-over';
+		};
 		const far = (g: number) =>
 			bands.every(
 				(b) =>
@@ -494,17 +530,8 @@
 			}
 
 			// the clearing's lines, streaming in once the plan is drawn, untouched by the wear: multiplied on top
-			const ce = now - clearingAt;
-			if (ce > 0 && clearing.drops.length) {
-				const [W, H] = [clearing.sw * 2, clearing.sh * 2];
-				cspot.globalCompositeOperation = 'copy';
-				cspot.drawImage(maskOf(clearing, ce, 1).canvas, 0, 0, W, H);
-				cspot.globalCompositeOperation = 'source-in';
-				cspot.drawImage(innerInk.canvas, clearing.x0, clearing.y0, W, H, 0, 0, W, H);
-				out.globalCompositeOperation = 'multiply';
-				out.drawImage(cspot.canvas, clearing.x0, clearing.y0);
-				out.globalCompositeOperation = 'source-over';
-			}
+			inkThrough(heart, now - clearingAt, heartInk);
+			inkThrough(clearing, now - clearingAt - HEART_MS, innerInk);
 			if (!still || worn) raf = requestAnimationFrame(frame);
 		};
 		// the pointer wears the field down near it, steeply less with distance, and the pen draws it back everywhere

@@ -284,3 +284,78 @@ export function displace(
 		}
 	c.putImageData(out, 0, 0);
 }
+
+/**
+ * A dried pool of ink in the shape of a hexagon, onto layer `c`. What makes it read as ink that pooled and dried
+ * rather than a fill: its edge wanders; the ink is darkest in a rim along the edge, where it was carried as it
+ * dried (the coffee-ring effect), with a faint tide line inside where it paused; its body is a little uneven;
+ * just past the edge it has wicked into the raised fibres; and the paper's tooth (in `compose`) granulates it.
+ * Where `reserve` has coverage the paper was kept from the ink (the title, left unstained): the ink stops
+ * softly at those edges and pools a little darker against them.
+ */
+export function pool(
+	c: CanvasRenderingContext2D,
+	paper: Paper,
+	{
+		cx,
+		cy,
+		r,
+		unit,
+		reserve
+	}: { cx: number; cy: number; r: number; unit: number; reserve?: CanvasRenderingContext2D }
+) {
+	const { w, h, grain } = paper;
+	const pad = 14 * unit,
+		x0 = Math.max(0, Math.floor(cx - r - pad)),
+		y0 = Math.max(0, Math.floor(cy - r - pad)),
+		bw = Math.min(w, Math.ceil(cx + r + pad)) - x0,
+		bh = Math.min(h, Math.ceil(cy + r + pad)) - y0;
+	if (bw <= 0 || bh <= 0) return;
+	const blurred = (px: number) => {
+		const t = document.createElement('canvas');
+		t.width = bw;
+		t.height = bh;
+		const g = t.getContext('2d', { willReadFrequently: true })!;
+		if (reserve) {
+			g.filter = `blur(${px}px)`;
+			g.drawImage(reserve.canvas, x0, y0, bw, bh, 0, 0, bw, bh);
+		}
+		return g.getImageData(0, 0, bw, bh).data;
+	};
+	const soft = blurred(0.7 * unit),
+		halo = blurred(3 * unit);
+	const img = c.getImageData(x0, y0, bw, bh),
+		d = img.data;
+	const apothem = (r * Math.sqrt(3)) / 2,
+		u = unit;
+	for (let by = 0; by < bh; by++)
+		for (let bx = 0; bx < bw; bx++) {
+			const x = x0 + bx,
+				y = y0 + by,
+				dx = Math.abs(x + 0.5 - cx),
+				dy = Math.abs(y + 0.5 - cy);
+			// distance to a flat-topped hexagon's edge (negative inside), wandering
+			const edge =
+				Math.max(dy - apothem, (dx * Math.sqrt(3)) / 2 + dy / 2 - apothem) +
+				(noise(x / (45 * u), y / (45 * u), 3) - 0.5) * 16 * u +
+				(noise(x / (11 * u), y / (11 * u), 5) - 0.5) * 5 * u;
+			const inside = Math.min(1, Math.max(0, 0.5 - edge / (1.2 * u))),
+				depth = Math.max(0, -edge);
+			let dens =
+				inside *
+				(0.6 +
+					0.32 * Math.exp(-depth / (5 * u)) +
+					0.14 * Math.exp(-(((depth - 24 * u) / (3 * u)) ** 2)) +
+					(noise(x / (70 * u), y / (70 * u), 9) - 0.5) * 0.16);
+			if (edge > 0) {
+				const fibre = Math.min(1, Math.max(0, (grain[y * w + x] - 0.45) / 0.35));
+				dens += 0.55 * Math.exp(-edge / (1.6 * u)) * fibre;
+			}
+			const i = (by * bw + bx) * 4,
+				kept = soft[i + 3] / 255,
+				against = Math.max(0, halo[i + 3] / 255 - kept);
+			dens = dens * (1 - Math.min(1, kept * 1.15)) + inside * against * 0.35 * (1 - kept);
+			d[i + 3] = Math.max(d[i + 3], Math.min(255, dens * 255));
+		}
+	c.putImageData(img, x0, y0);
+}

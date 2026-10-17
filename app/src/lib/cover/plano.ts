@@ -67,6 +67,8 @@ export interface PlanoScene {
 	lettering: Lettered[];
 	/** a spread-out set of those galleries (indices), for a cover that stands still */
 	opening: number[];
+	/** the heart of the clearing: a hexagon (centre, circumradius) inside the lines, and the title set in it */
+	centre: { c: Pt; r: number; title: Mark[] };
 }
 
 /** A gallery that can be lettered: its band, and the shelves the band replaces. */
@@ -301,7 +303,20 @@ export function planoScene(o: Partial<PlanoOptions> = {}): PlanoScene {
 		if (rnd() < p.shafts) plan.push({ kind: 'circle', c: [x, y], r: 8, w: 1, alpha: 0.75 });
 	}
 
-	return { plan, notes, lettering, opening };
+	// the title, in the face kept for it, in the middle of the clearing
+	const title: Mark[] = [
+		['LA BIBLIOTECA', cy - 4],
+		['DE BABEL', cy + 34]
+	].map(([t, y]) => ({
+		kind: 'text',
+		t: t as string,
+		at: [cx, y as number],
+		size: 27,
+		font: TITLE_FONT.font,
+		spacing: TITLE_FONT.spacing + 1
+	}));
+
+	return { plan, notes, lettering, opening, centre: { c: [cx, cy], r: 165, title } };
 }
 
 /**
