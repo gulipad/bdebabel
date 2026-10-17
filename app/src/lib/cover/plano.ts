@@ -101,9 +101,12 @@ const WORDS = [
 	'el espejo del zaguán'
 ];
 
-/** From a page of babel-1 (src/lib/map/sample-text.ts). */
-const CLEARING_TEXT =
-	'Los macrocéfalos están de acuerdo en que la vida es una serie de movimientos y movimientos que se han transmitido recíprocamente, de suerte que sus estados de ánimo, cuando son divergentes, en su mayor parte, son necesariamente independientes.';
+/** From a page of babel-1 (src/lib/map/sample-text.ts): one line per loop, the outermost first. */
+const CLEARING_TEXT = [
+	'Los macrocéfalos están de acuerdo en que la vida es una serie de movimientos y movimientos que se han transmitido recíprocamente, de suerte que sus estados de ánimo, cuando son divergentes, en su mayor parte, son necesariamente independientes.',
+	'Tal es la regla general, y según ellos, para que la mente se sienta capaz de explicar en sus sentimientos, hay que fingir, o, lo que es lo mismo, tomar en cuenta la magnitud, longitud y magnitud de la causa de que sea un objeto.',
+	'Es evidente que tienen una inteligencia superior, aunque no comprendan más que una pequeña extensión de tierra.'
+];
 
 const hexPts = (cx: number, cy: number, r: number): Pt[] =>
 	Array.from({ length: 6 }, (_, k) => {
@@ -216,11 +219,17 @@ export function planoScene(o: Partial<PlanoOptions> = {}): PlanoScene {
 			}
 		}
 	}
-	// a band of lettering around some galleries, spread apart; those have no shelves drawn
+	// a band of lettering around some galleries, spread apart and away from the clearing's shore; those have no
+	// shelves drawn
 	const lrnd = seeded(p.seed + 7);
 	const order = cells
 		.map((c) => ({ c, r: lrnd() }))
 		.filter(({ c: [x, y] }) => x > 110 && x < VIEW.w - 110 && y > 90 && y < VIEW.h - 90)
+		.filter(({ c: [x, y] }) =>
+			Array.from({ length: 6 }, (_, k) => (Math.PI / 3) * (k + 0.5)).every(
+				(a) => Math.hypot(x + dy * Math.cos(a) - cx, y + dy * Math.sin(a) - cy) >= p.clearing
+			)
+		)
 		.sort((a, b) => a.r - b.r)
 		.map(({ c }) => c);
 	const words = [...WORDS].sort(() => lrnd() - 0.5);
@@ -246,9 +255,11 @@ export function planoScene(o: Partial<PlanoOptions> = {}): PlanoScene {
 	});
 
 	// a sentence from a page of babel-1 lining the clearing, along the walls that face it
-	const shore = clearingShore(cells, s, cx, cy, p.clearing, 3 + 15 * 0.72);
-	if (shore.length > 2)
-		plan.push({ kind: 'ring', t: CLEARING_TEXT, pts: shore, size: 15, font: FELL, alpha: 0.9 });
+	CLEARING_TEXT.forEach((t, i) => {
+		const shore = clearingShore(cells, s, cx, cy, p.clearing, 3 + 15 * 0.72 + i * 17);
+		if (shore.length > 2)
+			plan.push({ kind: 'ring', t, pts: shore, size: 15, font: FELL, alpha: 0.9 });
+	});
 
 	// shelves along two walls of each gallery, and some ventilation shafts
 	for (const [x, y] of cells) {
@@ -270,16 +281,6 @@ export function planoScene(o: Partial<PlanoOptions> = {}): PlanoScene {
 			}
 		if (rnd() < p.shafts) plan.push({ kind: 'circle', c: [x, y], r: 8, w: 1, alpha: 0.75 });
 	}
-
-	// an ink blot
-	notes.push({
-		kind: 'path',
-		d: 'M1020 660 c 14 -10 32 -2 34 13 c 2 16 -15 27 -29 21 c -13 -5 -18 -24 -5 -34 z',
-		w: 0,
-		fill: true,
-		alpha: 0.85
-	});
-	notes.push({ kind: 'circle', c: [1062, 676], r: 2.6, w: 0, alpha: 0.7 });
 
 	return { plan, notes };
 }
