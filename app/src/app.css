@@ -1,0 +1,78 @@
+/* La Ciudad de Babel: ink on paper. One deliberate world (no dark theme yet): every color is a token here. */
+:root {
+	color-scheme: light;
+	--paper: #ece2cb;
+	--paper-deep: #e3d3b2;
+	--ink: #241a12; /* fresh iron-gall ink */
+	--ink-dry: #5b3f2a; /* dried ink: body text */
+	--ink-faint: #8a7058; /* captions */
+	--madder: #a4473b; /* the one red */
+	--rule: rgba(91, 63, 42, 0.28);
+
+	--display: 'IM Fell English', 'Iowan Old Style', Georgia, serif;
+	--display-sc: 'IM Fell English SC', 'IM Fell English', Georgia, serif;
+	--body: 'EB Garamond', Garamond, Georgia, serif;
+	--hand: 'Homemade Apple', 'Segoe Script', cursive;
+	--signature: 'Mrs Saint Delafield', cursive;
+	--mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+
+	padding-top: env(safe-area-inset-top, 0px);
+	padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+* {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	margin: 0;
+	min-height: 100%;
+}
+
+body {
+	background: var(--paper);
+	color: var(--ink-dry);
+	font-family: var(--body);
+	font-size: 17px;
+	line-height: 1.55;
+	-webkit-font-smoothing: antialiased;
+}
+
+a {
+	color: var(--ink);
+	text-decoration-color: var(--madder);
+	text-underline-offset: 0.18em;
+}
+
+:focus-visible {
+	outline: 2px dashed var(--madder);
+	outline-offset: 3px;
+}
+
+button {
+	font-family: var(--mono);
+	font-size: 0.78rem;
+	letter-spacing: 0.04em;
+	color: var(--ink);
+	background: var(--paper);
+	border: 1px solid rgba(91, 63, 42, 0.45);
+	padding: 0.55rem 0.9rem;
+	cursor: pointer;
+}
+
+button:hover {
+	background: #f3ead6;
+}
+
+button:disabled {
+	opacity: 0.55;
+	cursor: progress;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	* {
+		animation-duration: 0.01ms !important;
+		transition-duration: 0.01ms !important;
+	}
+}

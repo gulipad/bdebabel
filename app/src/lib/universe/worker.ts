@@ -1,0 +1,221 @@
+/// <reference lib="webworker" />
+/**
+ * The engine worker: loads a frozen universe, checks every file against its manifest, and computes pages
+ * off the main thread so the interface (and its ink) never waits on the model.
+ */
+import type {
+	AddressModule,
+	CodecModule,
+	FastModule,
+	Library,
+	LibraryTables,
+	Manifest,
+	ModelIndex,
+	Rings
+} from './frozen';
+import type {
+	PageResult,
+	Request,
+	SearchPage,
+	Stage,
+	UniverseInfo,
+	WorkerMessage
+} from './protocol';
+
+declare const self: DedicatedWorkerGlobalScope;
+
+const CACHE = 'ciudad-de-babel-universes';
+
+interface Open {
+	manifest: Manifest;
+	library: Library;
+	codec: CodecModule;
+	address: AddressModule;
+	key: Uint8Array;
+	rings: Rings;
+}
+let universe: Open | null = null;
+
+const post = (m: WorkerMessage) => self.postMessage(m);
+const progress = (stage: Stage, loaded = 0, total = 0) =>
+	post({ kind: 'progress', stage, loaded, total });
+
+async function sha256(bytes: ArrayBuffer | Uint8Array): Promise<string> {
+	const digest = await crypto.subtle.digest('SHA-256', bytes as BufferSource);
+	return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Fetches a file of the universe (from the cache when we have it), streaming progress for large ones. */
+async function fetchBytes(
+	url: string,
+	onProgress?: (loaded: number, total: number) => void
+): Promise<Uint8Array> {
+	const cache = 'caches' in self ? await caches.open(CACHE) : null;
+	let res = (await cache?.match(url)) ?? null;
+	const cached = !!res;
+	if (!res) {
+		res = await fetch(url);
+		if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
+	}
+	const total = Number(res.headers.get('Content-Length') ?? 0);
+	let out: Uint8Array;
+	if (onProgress && res.body) {
+		const reader = res.body.getReader();
+		const parts: Uint8Array[] = [];
+		let loaded = 0;
+		for (;;) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			parts.push(value);
+			loaded += value.length;
+			onProgress(loaded, total);
+		}
+		out = new Uint8Array(loaded);
+		let o = 0;
+		for (const p of parts) {
+			out.set(p, o);
+			o += p.length;
+		}
+	} else out = new Uint8Array(await res.arrayBuffer());
+	if (!cached) await cache?.put(url, new Response(out as BufferSource, { headers: res.headers }));
+	return out;
+}
+
+async function verified(
+	base: string,
+	rel: string,
+	expected: string,
+	onProgress?: (l: number, t: number) => void
+) {
+	const bytes = await fetchBytes(new URL(rel, base).href, onProgress);
+	const got = await sha256(bytes);
+	if (got !== expected) {
+		if ('caches' in self) await (await caches.open(CACHE)).delete(new URL(rel, base).href);
+		throw new Error(
+			`${rel} does not match the universe's manifest (expected ${expected.slice(0, 12)}…, got ${got.slice(0, 12)}…)`
+		);
+	}
+	return bytes;
+}
+
+async function init(base: string): Promise<UniverseInfo> {
+	progress('manifest');
+	const manifest = (await (await fetch(new URL('manifest.json', base))).json()) as Manifest;
+	const rings = (await (await fetch(new URL('rings.json', base))).json()) as Rings;
+	const files = manifest.files;
+
+	// The engine code: checked, then imported by URL exactly as frozen.
+	progress('engine');
+	for (const rel of Object.keys(files).filter(
+		(f) => f.startsWith('engine/') && f.endsWith('.js')
+	)) {
+		await verified(base, rel, files[rel]);
+	}
+	const load = <T>(rel: string) => import(/* @vite-ignore */ new URL(rel, base).href) as Promise<T>;
+	const [fast, codec, address] = await Promise.all([
+		load<FastModule>('engine/fast.js'),
+		load<CodecModule>('engine/codec.js'),
+		load<AddressModule>('engine/address.js')
+	]);
+
+	// The model: 77 MB the first time, from the browser's cache after that.
+	const modelBin = await verified(base, 'model/model.bin', files['model/model.bin'], (l, t) =>
+		progress('model', l, t)
+	);
+	progress('verify');
+	const [modelJson, wasm, tablesJson] = await Promise.all([
+		verified(base, 'model/model.json', files['model/model.json']),
+		verified(base, 'model/engine.wasm', files['model/engine.wasm']),
+		verified(base, 'model/library.json', files['model/library.json'])
+	]);
+	const dec = new TextDecoder();
+	const index = JSON.parse(dec.decode(modelJson)) as ModelIndex;
+	const tables = JSON.parse(dec.decode(tablesJson)) as LibraryTables;
+	const engine = await fast.fastEngine(modelBin, index, wasm);
+	const library = new codec.Library(engine, tables, manifest.settings);
+	universe = {
+		manifest,
+		library,
+		codec,
+		address,
+		key: address.hexKey(manifest.scramble_key),
+		rings
+	};
+	progress('ready');
+	return {
+		id: manifest.id,
+		description: manifest.description,
+		model: manifest.source_model.name ?? manifest.source_model.folder,
+		pageChars: manifest.page_chars,
+		rings: rings.rings
+	};
+}
+
+function need(): Open {
+	if (!universe) throw new Error('the universe is not open yet');
+	return universe;
+}
+
+const bitsOf = (n: bigint) => (n === 0n ? 0 : n.toString(2).length);
+
+function ringOf(bits: number): string {
+	for (const r of need().rings.rings) if (r.until === null || bits <= r.until) return r.name;
+	return 'el vacío';
+}
+
+/** The page at a number, under its canonical (shortest) address. */
+async function pageAt(n: bigint): Promise<PageResult> {
+	const u = need();
+	const [text] = u.library.pageDecode(n);
+	const c = u.library.pageEncode(text);
+	const bits = bitsOf(c);
+	return {
+		address: await u.address.addressOf(u.manifest.id, u.key, c),
+		text,
+		bits,
+		ring: ringOf(bits)
+	};
+}
+
+async function handle(req: Request): Promise<unknown> {
+	switch (req.type) {
+		case 'init':
+			return init(req.base);
+		case 'center':
+			return pageAt(0n);
+		case 'random':
+			return pageAt(need().codec.randomAddress(req.seed, need().library.PAGE));
+		case 'open': {
+			const u = need();
+			const n = await u.address.numberOf(u.manifest.id, u.key, req.address);
+			const [text] = u.library.pageDecode(n);
+			const bits = bitsOf(n);
+			return { address: req.address, text, bits, ring: ringOf(bits) } satisfies PageResult;
+		}
+		case 'search': {
+			const u = need();
+			const [query, removed] = u.codec.normalize(req.query, u.library.alphabet);
+			const r = u.library.search(query, req.seed);
+			const c = u.library.pageEncode(r.page);
+			const bits = bitsOf(c);
+			return {
+				address: await u.address.addressOf(u.manifest.id, u.key, c),
+				text: r.page,
+				bits,
+				ring: ringOf(bits),
+				offset: r.offset,
+				query,
+				removed
+			} satisfies SearchPage;
+		}
+	}
+}
+
+self.onmessage = async (e: MessageEvent<Request & { id: number }>) => {
+	const { id, ...req } = e.data;
+	try {
+		post({ kind: 'reply', id, ok: true, result: await handle(req as Request) });
+	} catch (err) {
+		post({ kind: 'reply', id, ok: false, error: err instanceof Error ? err.message : String(err) });
+	}
+};

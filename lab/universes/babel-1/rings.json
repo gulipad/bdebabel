@@ -1,0 +1,34 @@
+{
+ "universe": "babel-1",
+ "pages": 100,
+ "percentiles": {
+  "p1": 2078,
+  "p10": 2143,
+  "p50": 2326,
+  "p90": 2528,
+  "p99": 2820
+ },
+ "rings": [
+  {
+   "name": "el centro",
+   "until": 2078
+  },
+  {
+   "name": "los barrios",
+   "until": 2820
+  },
+  {
+   "name": "las afueras",
+   "until": 5640
+  },
+  {
+   "name": "los confines",
+   "until": 22560
+  },
+  {
+   "name": "el vacío",
+   "until": null
+  }
+ ],
+ "note": "Boundaries from the distances of pages opened at random addresses: the 1% nearest are the center, the middle 98% the neighbourhoods where browsing lands; beyond, text the Library finds increasingly unlikely."
+}
