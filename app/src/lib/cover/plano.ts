@@ -34,7 +34,7 @@ export const DEFAULT_PLANO: PlanoOptions = {
 type Pt = [number, number];
 
 export type Mark =
-	| { kind: 'line'; a: Pt; b: Pt; w: number; alpha?: number }
+	| { kind: 'line'; a: Pt; b: Pt; w: number; alpha?: number; /** a gallery wall */ wall?: true }
 	| { kind: 'circle'; c: Pt; r: number; w: number; alpha?: number }
 	| { kind: 'path'; d: string; w: number; fill?: boolean; alpha?: number }
 	| {
@@ -63,6 +63,17 @@ export interface PlanoScene {
 	plan: Mark[];
 	/** the librarian's notes, arrows and blot */
 	notes: Mark[];
+	/** the galleries that can carry a band of lettering, kept apart so the bands can come and go */
+	lettering: Lettered[];
+	/** a spread-out set of those galleries (indices), for a cover that stands still */
+	opening: number[];
+}
+
+/** A gallery that can be lettered: its band, and the shelves the band replaces. */
+export interface Lettered {
+	c: Pt;
+	ring: Extract<Mark, { kind: 'ring' }>;
+	shelves: Mark[];
 }
 
 const FELL = "italic {s}px 'IM Fell English', Georgia, serif";
@@ -104,8 +115,7 @@ const WORDS = [
 /** From a page of babel-1 (src/lib/map/sample-text.ts): one line per loop, the outermost first. */
 const CLEARING_TEXT = [
 	'Los macrocéfalos están de acuerdo en que la vida es una serie de movimientos y movimientos que se han transmitido recíprocamente, de suerte que sus estados de ánimo, cuando son divergentes, en su mayor parte, son necesariamente independientes.',
-	'Tal es la regla general, y según ellos, para que la mente se sienta capaz de explicar en sus sentimientos, hay que fingir, o, lo que es lo mismo, tomar en cuenta la magnitud, longitud y magnitud de la causa de que sea un objeto.',
-	'Es evidente que tienen una inteligencia superior, aunque no comprendan más que una pequeña extensión de tierra.'
+	'Tal es la regla general, y según ellos, para que la mente se sienta capaz de explicar en sus sentimientos, hay que fingir, o, lo que es lo mismo, tomar en cuenta la magnitud, longitud y magnitud de la causa de que sea un objeto.'
 ];
 
 const hexPts = (cx: number, cy: number, r: number): Pt[] =>
@@ -177,6 +187,7 @@ export function planoScene(o: Partial<PlanoOptions> = {}): PlanoScene {
 	const rnd = seeded(p.seed);
 	const plan: Mark[] = [];
 	const notes: Mark[] = [];
+	const lettering: Lettered[] = [];
 	const s = p.cell,
 		gap = p.gap,
 		cx = VIEW.w / 2,
@@ -196,7 +207,7 @@ export function planoScene(o: Partial<PlanoOptions> = {}): PlanoScene {
 		}
 	const seen = new Set<string>();
 	const wall = (a: Pt, b: Pt, t0: number, t1: number) =>
-		plan.push({ kind: 'line', a: lerp(a, b, t0), b: lerp(a, b, t1), w: 1.5 });
+		plan.push({ kind: 'line', a: lerp(a, b, t0), b: lerp(a, b, t1), w: 1.5, wall: true });
 	for (const [x, y] of cells) {
 		const outer = hexPts(x, y, s),
 			inner = hexPts(x, y, s - gap);
@@ -219,8 +230,7 @@ export function planoScene(o: Partial<PlanoOptions> = {}): PlanoScene {
 			}
 		}
 	}
-	// a band of lettering around some galleries, spread apart and away from the clearing's shore; those have no
-	// shelves drawn
+	// the galleries that can carry a band of lettering: away from the board's edges and the clearing's shore
 	const lrnd = seeded(p.seed + 7);
 	const order = cells
 		.map((c) => ({ c, r: lrnd() }))
@@ -234,24 +244,33 @@ export function planoScene(o: Partial<PlanoOptions> = {}): PlanoScene {
 		.map(({ c }) => c);
 	const words = [...WORDS].sort(() => lrnd() - 0.5);
 	const phrases = [...NAMED, ...words];
-	const bands: Pt[] = [];
-	for (const c of order) {
-		if (bands.length >= Math.min(phrases.length, Math.round(cells.length / 6))) break;
-		if (bands.some((b) => Math.hypot(b[0] - c[0], b[1] - c[1]) < dy * 1.6)) continue;
-		bands.push(c);
-	}
 	const size = 11,
 		r = ((s - gap) * Math.sqrt(3)) / 2 - 2 - size * 0.72; // the baseline's apothem, letters leaning on the wall
-	bands.forEach(([x, y], i) => {
+	order.forEach(([x, y], i) => {
 		const pts = hexPts(x, y, (r * 2) / Math.sqrt(3));
-		plan.push({
-			kind: 'ring',
-			t: phrases[i],
-			pts: [...pts.slice(4), ...pts.slice(0, 4)], // from the top-left corner
-			size,
-			font: FELL,
-			alpha: 0.9
+		lettering.push({
+			c: [x, y],
+			ring: {
+				kind: 'ring',
+				t: phrases[i % phrases.length],
+				pts: [...pts.slice(4), ...pts.slice(0, 4)], // from the top-left corner
+				size,
+				font: FELL,
+				alpha: 0.9
+			},
+			shelves: []
 		});
+	});
+	const opening: number[] = [];
+	lettering.forEach((g, i) => {
+		if (opening.length >= Math.min(phrases.length, Math.round(cells.length / 6))) return;
+		if (
+			opening.some(
+				(j) => Math.hypot(lettering[j].c[0] - g.c[0], lettering[j].c[1] - g.c[1]) < dy * 1.6
+			)
+		)
+			return;
+		opening.push(i);
 	});
 
 	// a sentence from a page of babel-1 lining the clearing, along the walls that face it
@@ -261,28 +280,28 @@ export function planoScene(o: Partial<PlanoOptions> = {}): PlanoScene {
 			plan.push({ kind: 'ring', t, pts: shore, size: 15, font: FELL, alpha: 0.9 });
 	});
 
-	// shelves along two walls of each gallery, and some ventilation shafts
+	// shelves along two walls of each gallery (a lettered gallery keeps its own), and some ventilation shafts
 	for (const [x, y] of cells) {
 		const inn = hexPts(x, y, s - gap - 6);
-		if (!bands.some((b) => b[0] === x && b[1] === y))
-			for (const k of [1, 4]) {
-				const a = inn[k],
-					b = inn[(k + 1) % 6];
-				for (let t = 0.2; t <= 0.8; t += 0.085) {
-					const q = lerp(a, b, t);
-					plan.push({
-						kind: 'line',
-						a: q,
-						b: [q[0] + (x - q[0]) * 0.09, q[1] + (y - q[1]) * 0.09],
-						w: 0.8,
-						alpha: 0.75
-					});
-				}
+		const shelves = lettering.find((g) => g.c[0] === x && g.c[1] === y)?.shelves ?? plan;
+		for (const k of [1, 4]) {
+			const a = inn[k],
+				b = inn[(k + 1) % 6];
+			for (let t = 0.2; t <= 0.8; t += 0.085) {
+				const q = lerp(a, b, t);
+				shelves.push({
+					kind: 'line',
+					a: q,
+					b: [q[0] + (x - q[0]) * 0.09, q[1] + (y - q[1]) * 0.09],
+					w: 0.8,
+					alpha: 0.75
+				});
 			}
+		}
 		if (rnd() < p.shafts) plan.push({ kind: 'circle', c: [x, y], r: 8, w: 1, alpha: 0.75 });
 	}
 
-	return { plan, notes };
+	return { plan, notes, lettering, opening };
 }
 
 /**

@@ -2,7 +2,12 @@
 	/**
 	 * Cover test page: the plan of the galleries drawn with a pen on paper (src/lib/pen). Walls, shelves and
 	 * arrows are pen strokes; labels and notes are lettered into the same ink layers; both layers are multiplied
-	 * onto the sheet so the paper's grain runs through the ink.
+	 * onto the sheet so the paper's grain runs through the ink. The galleries' bands of lettering come and go: a
+	 * band inks in letter by letter, each letter melting in a patch at a time, stays a while, and melts away again,
+	 * giving its shelves back, while others ink in elsewhere. The pointer leaves its mark on
+	 * the plan, in one of two ways under test: it wears the ink away, and the plan is drawn back (the default), or
+	 * (#presion) near it the walls are drawn a touch heavier and less steady, as if the pen pressed there. The
+	 * sheet arrives worn away, and the plan melts in in patches.
 	 */
 	import { onMount } from 'svelte';
 	import {
@@ -26,10 +31,44 @@
 
 	let canvas: HTMLCanvasElement;
 
+	/** the bands on the go (a gallery, and when it began to ink in), and the frame that carries them on */
+	let bands: { g: number; start: number }[] = [],
+		recent: number[] = [],
+		raf = 0,
+		still = false;
+	const BANDS = 7, // bands on the sheet at once
+		GAP_MS = 900, // ms at least between one band starting and the next
+		LETTER_MS = 75, // ms between letters along a band
+		BLOOM_MS = 650, // ms for a letter to soak in
+		HOLD_MS = 4000, // ms a band stays once written
+		FADE_MS = 2500; // ms for it to fade
+	const REACH = 170, // board units: how far from the pointer the walls grow heavier
+		HEAVY = 1.4, // how much wider a wall is under the pointer
+		WEAR_REACH = 110, // board units: how far from the pointer the ink wears away
+		EAT = 2.5, // how fast it wears, in full wear per second at the pointer
+		REDRAW = 0.35, // how fast it is drawn back, per second (about three seconds from bare paper)
+		CELL = 8; // sheet px per cell of the wear field
+
+	/** the pointer (css px), and where the heaviness is and how much of it, easing after the pointer */
+	const pointer = { x: 0, y: 0, in: false },
+		hover = { x: 0, y: 0, a: 0 };
+	/** asks for a frame when nothing else is drawing them (a still cover) */
+	let kick = () => {};
+	/** whether the sheet has made its entrance (it does once, not on every resize) */
+	let entered = false;
+
+	const sheet = (w: number, h: number) => {
+		const c = document.createElement('canvas');
+		c.width = w;
+		c.height = h;
+		return c.getContext('2d')!;
+	};
+
 	const SEPIA: [number, number, number] = [92, 58, 34];
 	const IRON_GALL: [number, number, number] = [40, 28, 20];
 
-	function draw() {
+	function render() {
+		cancelAnimationFrame(raf);
 		const dpr = Math.min(window.devicePixelRatio || 1, 2); // full resolution on retina screens
 		const w = Math.round(innerWidth * dpr),
 			h = Math.round(innerHeight * dpr);
@@ -127,25 +166,405 @@
 		};
 
 		const plan = inkLayer(w, h),
-			notes = inkLayer(w, h);
-		draw(plan.c, scene.plan);
+			inner = inkLayer(w, h), // the lines around the clearing, which nothing wears away
+			notes = inkLayer(w, h),
+			shelves = inkLayer(w, h),
+			letters = inkLayer(w, h);
+		draw(
+			plan.c,
+			scene.plan.filter((m) => m.kind !== 'ring')
+		);
 		displace(plan.c, w, h, k); // the slightly imperfect line of cover E
+		draw(
+			inner.c,
+			scene.plan.filter((m) => m.kind === 'ring')
+		);
+		displace(inner.c, w, h, k);
 		draw(notes.c, scene.notes);
-		compose(canvas.getContext('2d')!, paper, [
+		draw(
+			shelves.c,
+			scene.lettering.flatMap((g) => g.shelves)
+		);
+		displace(shelves.c, w, h, k);
+		draw(
+			letters.c,
+			scene.lettering.map((g) => g.ring)
+		);
+		displace(letters.c, w, h, k);
+		// the sheet with every lettered gallery's shelves, and with its band instead; a mask per band shows the second
+		const layers = [
 			{ c: plan.c, ink: SEPIA, strength: 1.15 },
+			{ c: inner.c, ink: SEPIA, strength: 1.15 },
 			{ c: notes.c, ink: IRON_GALL, strength: 1.1, tooth: 0.4 }
+		];
+		const before = sheet(w, h),
+			after = sheet(w, h);
+		compose(before, paper, [...layers, { c: shelves.c, ink: SEPIA, strength: 1.15 }]);
+		// only the ink the walls gain when drawn heavier, as a sheet to multiply on near the pointer
+		const heavy = inkLayer(w, h);
+		draw(
+			heavy.c,
+			scene.plan.flatMap((m) => (m.kind === 'line' && m.wall ? [{ ...m, w: m.w * HEAVY }] : []))
+		);
+		displace(heavy.c, w, h, k, { scale: 3.4, seed: 57 }); // a less steady hand than the plan's own
+		heavy.c.globalCompositeOperation = 'destination-out';
+		heavy.c.drawImage(plan.canvas, 0, 0);
+		const gain = sheet(w, h);
+		compose(gain, { ...paper, rgb: new Uint8ClampedArray(w * h * 3).fill(255) }, [
+			{ c: heavy.c, ink: SEPIA, strength: 0.9 }
 		]);
+		const reach = Math.ceil(REACH * k),
+			spot = sheet(reach * 2, reach * 2);
+
+		// wearing the ink away: a coarse field of wear, and the order the ink goes in, blotchy and raised fibres first
+		const dissolve = location.hash !== '#presion';
+		const bare = sheet(w, h);
+		compose(bare, paper, [{ c: inner.c, ink: SEPIA, strength: 1.15 }]);
+		const gw = Math.ceil(w / CELL) + 2,
+			gh = Math.ceil(h / CELL) + 2,
+			wear = new Float32Array(gw * gh);
+		const hw = Math.ceil(w / 2),
+			hh = Math.ceil(h / 2);
+		const order = new Float32Array(hw * hh);
+		{
+			const hash = (i: number, j: number) => {
+				const v = Math.sin(i * 127.1 + j * 311.7) * 43758.5453;
+				return v - Math.floor(v);
+			};
+			const blotch = 14 * k; // sheet px per noise cell
+			for (let y = 0; y < hh; y++)
+				for (let x = 0; x < hw; x++) {
+					const u = (x * 2) / blotch,
+						v = (y * 2) / blotch,
+						i = Math.floor(u),
+						j = Math.floor(v),
+						fx = u - i,
+						fy = v - j;
+					const sx = fx * fx * (3 - 2 * fx),
+						sy = fy * fy * (3 - 2 * fy);
+					const a = hash(i, j) + (hash(i + 1, j) - hash(i, j)) * sx,
+						b = hash(i, j + 1) + (hash(i + 1, j + 1) - hash(i, j + 1)) * sx;
+					order[y * hw + x] = 0.6 * (a + (b - a) * sy) + 0.4 * (1 - paper.grain[y * 2 * w + x * 2]);
+				}
+		}
+		// the entrance: worn everywhere, deeper in some broad patches, so the plan melts in a patch at a time
+		if (dissolve && !still && !entered) {
+			const hash = (i: number, j: number) => {
+				const v = Math.sin(i * 269.5 + j * 183.3) * 43758.5453;
+				return v - Math.floor(v);
+			};
+			const patch = (110 * k) / CELL; // wear cells per patch
+			for (let j = 0; j < gh; j++)
+				for (let i = 0; i < gw; i++) {
+					const u = i / patch,
+						v = j / patch,
+						a = Math.floor(u),
+						b = Math.floor(v),
+						fx = u - a,
+						fy = v - b,
+						sx = fx * fx * (3 - 2 * fx),
+						sy = fy * fy * (3 - 2 * fy);
+					const top = hash(a, b) + (hash(a + 1, b) - hash(a, b)) * sx,
+						bot = hash(a, b + 1) + (hash(a + 1, b + 1) - hash(a, b + 1)) * sx;
+					wear[j * gw + i] = 1.05 + 0.9 * (top + (bot - top) * sy);
+				}
+		}
+		entered = true;
+		const lift = new ImageData(hw, hh),
+			liftC = sheet(hw, hh);
+		let last = performance.now();
+		compose(after, paper, [...layers, { c: letters.c, ink: SEPIA, strength: 1.15 }]);
+
+		// one drop per letter, at the middle of its body, due in turn along its band (ms after the band starts)
+		const drnd = seeded(7);
+		const drops = scene.lettering.map((g) =>
+			ringLetters(letters.c, g.ring).flatMap((m, i) => {
+				if (m.kind !== 'text') return [];
+				const r = ((m.rot ?? 0) * Math.PI) / 180,
+					[x, y] = at(m.at),
+					lift = m.size * 0.32 * k;
+				return [
+					{
+						x: x + Math.sin(r) * lift,
+						y: y - Math.cos(r) * lift,
+						r: m.size * 0.9 * k,
+						due: i * LETTER_MS + drnd() * 40
+					}
+				];
+			})
+		);
+		const written = drops.map((d) => Math.max(0, ...d.map((p) => p.due)) + BLOOM_MS);
+		const life = (g: number) => written[g] + HOLD_MS + FADE_MS;
+		// each band's mask on its own small half-resolution sheet, dissolving in and out like the wear: every pixel
+		// belongs to its nearest letter, and shows once that letter's presence passes the pixel's place in the order
+		const margin = scene.lettering[0] ? (scene.lettering[0].ring.size * 1.6 + 70) * k : 0;
+		const side = 2 * Math.ceil(margin / 2); // half-res px
+		const fields: ({ idx: Int16Array; wgt: Float32Array; ord: Float32Array } | undefined)[] = [];
+		const fieldOf = (g: number, x0: number, y0: number) => {
+			let f = fields[g];
+			if (f) return f;
+			const n = side * side;
+			f = {
+				idx: new Int16Array(n).fill(-1),
+				wgt: new Float32Array(n),
+				ord: new Float32Array(n).fill(1)
+			};
+			for (let by = 0; by < side; by++)
+				for (let bx = 0; bx < side; bx++) {
+					const sx = x0 + bx * 2 + 1,
+						sy = y0 + by * 2 + 1,
+						p = by * side + bx;
+					let best = Infinity;
+					drops[g].forEach((d, i) => {
+						const u = Math.hypot(sx - d.x, sy - d.y) / d.r;
+						if (u < 1 && u < best) {
+							best = u;
+							f!.idx[p] = i;
+							f!.wgt[p] = Math.min(1, (1 - u) * 3);
+						}
+					});
+					const ox = x0 / 2 + bx,
+						oy = y0 / 2 + by;
+					if (ox >= 0 && oy >= 0 && ox < hw && oy < hh) f.ord[p] = order[oy * hw + ox];
+				}
+			fields[g] = f;
+			return f;
+		};
+		const masks: (
+			| { c: CanvasRenderingContext2D; img: ImageData; x0: number; y0: number; dry: boolean }
+			| undefined
+		)[] = []; // by gallery
+		const maskOf = (g: number, e: number) => {
+			let m = masks[g];
+			if (!m) {
+				const [x, y] = at(scene.lettering[g].c);
+				const c = sheet(side, side);
+				m = {
+					c,
+					img: c.createImageData(side, side),
+					x0: 2 * Math.floor((x - margin) / 2),
+					y0: 2 * Math.floor((y - margin) / 2),
+					dry: false
+				};
+				masks[g] = m;
+			}
+			// once written and until it starts to go, a band's mask stands still
+			const settled = e >= written[g] && e <= written[g] + HOLD_MS;
+			if (m.dry && settled) return m;
+			const f = fieldOf(g, m.x0, m.y0),
+				going = 1 - Math.min(1, Math.max(0, e - written[g] - HOLD_MS) / FADE_MS),
+				here = drops[g].map((d) =>
+					Math.min(going, Math.max(0, Math.min(1, (e - d.due) / BLOOM_MS)))
+				),
+				a = m.img.data;
+			for (let p = 0; p < side * side; p++) {
+				const i = f.idx[p];
+				if (i < 0) {
+					a[p * 4 + 3] = 0;
+					continue;
+				}
+				const t = Math.min(1, Math.max(0, (here[i] * f.wgt[p] * 1.25 - f.ord[p] + 0.08) / 0.16));
+				a[p * 4 + 3] = t * t * (3 - 2 * t) * 255;
+			}
+			m.c.putImageData(m.img, 0, 0);
+			m.dry = settled;
+			return m;
+		};
+		const far = (g: number) =>
+			bands.every(
+				(b) =>
+					Math.hypot(
+						scene.lettering[b.g].c[0] - scene.lettering[g].c[0],
+						scene.lettering[b.g].c[1] - scene.lettering[g].c[1]
+					) >=
+					66 * 1.732 * 1.6
+			);
+
+		const out = canvas.getContext('2d')!,
+			mask = sheet(w, h);
+		const frame = (now: number) => {
+			if (still) bands = scene.opening.map((g) => ({ g, start: now - written[g] }));
+			else {
+				// bands that have faded make way for new ones, in galleries away from the others and not just used
+				bands = bands.filter((b) => now - b.start < life(b.g));
+				masks.forEach((_, g) => {
+					if (!bands.some((b) => b.g === g)) masks[g] = undefined;
+				});
+				while (bands.length < BANDS) {
+					const free = scene.lettering
+						.map((_, i) => i)
+						.filter((i) => !recent.includes(i) && far(i));
+					if (!free.length) break;
+					const g = free[Math.floor(Math.random() * free.length)];
+					const last = Math.max(-Infinity, ...bands.map((b) => b.start));
+					bands.push({
+						g,
+						start: Math.max(now + 300, last + GAP_MS * (0.7 + Math.random() * 0.6))
+					});
+					recent = [g, ...recent].slice(0, 3);
+				}
+			}
+			out.drawImage(before.canvas, 0, 0);
+			mask.globalCompositeOperation = 'source-over';
+			mask.clearRect(0, 0, w, h);
+			for (const b of bands) {
+				const e = now - b.start;
+				if (e < 0) continue;
+				const m = maskOf(b.g, e);
+				mask.drawImage(m.c.canvas, m.x0, m.y0, side * 2, side * 2);
+			}
+			mask.globalCompositeOperation = 'source-in';
+			mask.drawImage(after.canvas, 0, 0);
+			out.drawImage(mask.canvas, 0, 0);
+
+			// the walls near the pointer, heavier, fading off steeply with distance: (1 - u²)²
+			const ease = still ? 1 : 0.25;
+			hover.x += (pointer.x - hover.x) * ease;
+			hover.y += (pointer.y - hover.y) * ease;
+			hover.a += (Number(pointer.in) - hover.a) * (still ? 1 : 0.12);
+			if (dissolve) wearAway(now);
+			else if (hover.a > 0.01) {
+				const x = Math.round(hover.x * dpr) - reach,
+					y = Math.round(hover.y * dpr) - reach;
+				spot.globalCompositeOperation = 'copy';
+				spot.drawImage(gain.canvas, x, y, reach * 2, reach * 2, 0, 0, reach * 2, reach * 2);
+				spot.globalCompositeOperation = 'destination-in';
+				const g = spot.createRadialGradient(reach, reach, 0, reach, reach, reach);
+				for (let i = 0; i <= 8; i++) {
+					const u = i / 8;
+					g.addColorStop(u, `rgba(0,0,0,${(1 - u * u) ** 2 * hover.a})`);
+				}
+				spot.fillStyle = g;
+				spot.fillRect(0, 0, reach * 2, reach * 2);
+				out.globalCompositeOperation = 'multiply';
+				out.drawImage(spot.canvas, x, y);
+				out.globalCompositeOperation = 'source-over';
+			}
+			if (!still || worn) raf = requestAnimationFrame(frame);
+		};
+		// the pointer wears the field down near it, steeply less with distance, and the pen draws it back everywhere
+		let worn = false;
+		const wearAway = (now: number) => {
+			const dt = Math.min(0.1, (now - last) / 1000);
+			last = now;
+			const px = (pointer.x * dpr) / CELL,
+				py = (pointer.y * dpr) / CELL,
+				rc = (WEAR_REACH * k) / CELL;
+			let x0 = gw,
+				y0 = gh,
+				x1 = -1,
+				y1 = -1;
+			for (let j = 0; j < gh; j++)
+				for (let i = 0; i < gw; i++) {
+					const n = j * gw + i;
+					let v = wear[n] - dt * REDRAW;
+					if (pointer.in) {
+						const u = Math.hypot(i - px, j - py) / rc;
+						// wearing tops out at bare paper; the entrance's deeper wear is left to come back on its own
+						if (u < 1) v = Math.max(v, Math.min(1, v + dt * EAT * (1 - u * u) ** 2));
+					}
+					v = Math.max(0, v);
+					wear[n] = v;
+					if (v > 0) {
+						x0 = Math.min(x0, i);
+						y0 = Math.min(y0, j);
+						x1 = Math.max(x1, i);
+						y1 = Math.max(y1, j);
+					}
+				}
+			worn = x1 >= 0;
+			if (!worn) return;
+			// the ink goes where the wear passes its place in the order, with a soft edge
+			const d = lift.data,
+				step = CELL / 2,
+				X0 = Math.max(0, (x0 - 1) * step),
+				Y0 = Math.max(0, (y0 - 1) * step),
+				X1 = Math.min(hw, (x1 + 2) * step),
+				Y1 = Math.min(hh, (y1 + 2) * step);
+			for (let y = Y0; y < Y1; y++)
+				for (let x = X0; x < X1; x++) {
+					const gx = x / step,
+						gy = y / step,
+						i = Math.floor(gx),
+						j = Math.floor(gy),
+						fx = gx - i,
+						fy = gy - j,
+						n = j * gw + i;
+					const v =
+						(wear[n] * (1 - fx) + wear[n + 1] * fx) * (1 - fy) +
+						(wear[n + gw] * (1 - fx) + wear[n + gw + 1] * fx) * fy;
+					const t = Math.min(1, Math.max(0, (v * 1.25 - order[y * hw + x] + 0.08) / 0.16));
+					d[(y * hw + x) * 4 + 3] = t * t * (3 - 2 * t) * 255;
+				}
+			liftC.putImageData(lift, 0, 0, X0, Y0, X1 - X0, Y1 - Y0);
+			mask.globalCompositeOperation = 'copy';
+			mask.drawImage(
+				liftC.canvas,
+				X0,
+				Y0,
+				X1 - X0,
+				Y1 - Y0,
+				X0 * 2,
+				Y0 * 2,
+				(X1 - X0) * 2,
+				(Y1 - Y0) * 2
+			);
+			mask.globalCompositeOperation = 'source-in';
+			mask.drawImage(bare.canvas, 0, 0);
+			mask.globalCompositeOperation = 'source-over';
+			out.drawImage(
+				mask.canvas,
+				X0 * 2,
+				Y0 * 2,
+				(X1 - X0) * 2,
+				(Y1 - Y0) * 2,
+				X0 * 2,
+				Y0 * 2,
+				(X1 - X0) * 2,
+				(Y1 - Y0) * 2
+			);
+		};
+		kick = () => {
+			if (still) {
+				cancelAnimationFrame(raf);
+				raf = requestAnimationFrame(frame);
+			}
+		};
+		frame(performance.now());
 	}
 
 	onMount(() => {
 		let timer = 0;
 		const redraw = () => {
 			clearTimeout(timer);
-			timer = window.setTimeout(draw, 200);
+			timer = window.setTimeout(render, 200);
 		};
-		Promise.all(PLANO_FONTS.map((f) => document.fonts.load(f).catch(() => null))).then(draw);
+		Promise.all(PLANO_FONTS.map((f) => document.fonts.load(f).catch(() => null))).then(() => {
+			// with reduced motion the lettering is simply there, and stays
+			still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+			render();
+		});
+		const move = (e: PointerEvent) => {
+			if (e.pointerType === 'touch') return;
+			if (!pointer.in) [hover.x, hover.y] = [e.clientX, e.clientY];
+			Object.assign(pointer, { x: e.clientX, y: e.clientY, in: true });
+			kick();
+		};
+		const leave = () => {
+			pointer.in = false;
+			kick();
+		};
 		addEventListener('resize', redraw);
-		return () => removeEventListener('resize', redraw);
+		addEventListener('hashchange', render);
+		addEventListener('pointermove', move);
+		document.documentElement.addEventListener('pointerleave', leave);
+		return () => {
+			removeEventListener('resize', redraw);
+			removeEventListener('hashchange', render);
+			removeEventListener('pointermove', move);
+			document.documentElement.removeEventListener('pointerleave', leave);
+			cancelAnimationFrame(raf);
+		};
 	});
 </script>
 
