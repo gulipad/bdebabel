@@ -4,12 +4,11 @@
 	 * arrows are pen strokes; labels and notes are lettered into the same ink layers; both layers are multiplied
 	 * onto the sheet so the paper's grain runs through the ink. The galleries' bands of lettering come and go: a
 	 * band inks in letter by letter, each letter melting in a patch at a time, stays a while, and melts away again,
-	 * giving its shelves back, while others ink in elsewhere. The pointer leaves its mark on
-	 * the plan, in one of two ways under test: it wears the ink away, and the plan is drawn back (the default), or
-	 * (#presion) near it the walls are drawn a touch heavier and less steady, as if the pen pressed there. The
-	 * sheet arrives worn away and the plan melts in in patches, with no lettering yet; then the heart of the
-	 * clearing melts in (a dark pool of ink with the title left unstained in it, or, with #limpio, the title alone),
-	 * then the clearing's lines stream in, and a little later the galleries' bands begin.
+	 * giving its shelves back, while others ink in elsewhere. The pointer wears the plan's ink away near it, and
+	 * the plan is drawn back after it. The sheet arrives worn away and the plan melts in in patches, with no
+	 * lettering yet; as it is nearly in, the clearing's lines start to stream, and once it is in, the heart of the
+	 * clearing melts in (a dark pool of ink with the title left unstained in it, or, with #limpio, the title
+	 * alone); a little later the galleries' bands begin.
 	 */
 	import { onMount } from 'svelte';
 	import {
@@ -46,28 +45,26 @@
 		BLOOM_MS = 650, // ms for a letter to soak in
 		HOLD_MS = 6000, // ms a band stays once written
 		FADE_MS = 3500; // ms for it to fade
-	const REACH = 170, // board units: how far from the pointer the walls grow heavier
-		HEAVY = 1.4, // how much wider a wall is under the pointer
-		WEAR_REACH = 110, // board units: how far from the pointer the ink wears away
+	const WEAR_REACH = 110, // board units: how far from the pointer the ink wears away
 		EAT = 2.5, // how fast it wears, in full wear per second at the pointer
 		REDRAW = 0.35, // how fast it is drawn back, per second (about three seconds from bare paper)
 		CELL = 8; // sheet px per cell of the wear field
 
-	/** the pointer (css px), and where the heaviness is and how much of it, easing after the pointer */
-	const pointer = { x: 0, y: 0, in: false },
-		hover = { x: 0, y: 0, a: 0 };
+	/** the pointer, in css px */
+	const pointer = { x: 0, y: 0, in: false };
 	/** asks for a frame when nothing else is drawing them (a still cover) */
 	let kick = () => {};
 	/** whether the sheet has made its entrance (it does once, not on every resize) */
 	let entered = false;
-	/** when the clearing's lines start streaming in, and when the galleries' bands may begin; bands begun so far */
+	/** when the clearing's lines start streaming in, when its heart melts in, and when the bands may begin */
 	let clearingAt = -Infinity,
+		heartAt = -Infinity,
 		bandsAt = -Infinity,
 		melting = 0; // how much of the entrance's deepest wear is still to be drawn back
-	const PAUSE_MS = 500, // ms after the plan has melted in before the clearing's lines start
+	const LEAD_MS = 500, // ms before the plan has fully melted in that the clearing's lines start
 		CLEARING_MS = 45, // ms between letters of the clearing's lines, written as one loop, the outer line first
-		BANDS_AFTER = 2500, // ms after the clearing's lines start before the first band
-		HEART_MS = 3500; // ms for the heart of the clearing to melt in, before its lines start
+		HEART_MS = 3500, // ms for the heart of the clearing to melt in, starting once the plan is in
+		BANDS_AFTER = 2500; // ms after the heart has melted in before the first band
 
 	const sheet = (w: number, h: number) => {
 		const c = document.createElement('canvas');
@@ -79,8 +76,14 @@
 	const SEPIA: [number, number, number] = [92, 58, 34];
 	const IRON_GALL: [number, number, number] = [40, 28, 20];
 
-	function render() {
+	/** the faces the lettering needs, loading; and which render is the latest (an older one stops when it sees) */
+	let fonts: Promise<unknown> = Promise.resolve(),
+		generation = 0;
+	const painted = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r)));
+
+	async function render() {
 		cancelAnimationFrame(raf);
+		const gen = ++generation;
 		const dpr = Math.min(window.devicePixelRatio || 1, 2); // full resolution on retina screens
 		const w = Math.round(innerWidth * dpr),
 			h = Math.round(innerHeight * dpr);
@@ -91,6 +94,15 @@
 		const scene = planoScene();
 		const rnd = seeded(1941);
 		const paper = makePaper(w, h, { scale: dpr });
+		const bare = sheet(w, h);
+		compose(bare, paper, []);
+		// the first time, the sheet shows at once, bare (the entrance starts from it), while the rest is built
+		if (!entered) {
+			canvas.getContext('2d')!.drawImage(bare.canvas, 0, 0);
+			await painted();
+		}
+		await fonts;
+		if (gen !== generation) return;
 
 		const draw = (layer: CanvasRenderingContext2D, marks: Mark[]) => {
 			for (const m of marks.flatMap((m) => (m.kind === 'ring' ? ringLetters(layer, m) : [m]))) {
@@ -211,26 +223,11 @@
 		const before = sheet(w, h),
 			after = sheet(w, h);
 		compose(before, paper, [...layers, { c: shelves.c, ink: SEPIA, strength: 1.15 }]);
-		// only the ink the walls gain when drawn heavier, as a sheet to multiply on near the pointer
-		const heavy = inkLayer(w, h);
-		draw(
-			heavy.c,
-			scene.plan.flatMap((m) => (m.kind === 'line' && m.wall ? [{ ...m, w: m.w * HEAVY }] : []))
-		);
-		displace(heavy.c, w, h, k, { scale: 3.4, seed: 57 }); // a less steady hand than the plan's own
-		heavy.c.globalCompositeOperation = 'destination-out';
-		heavy.c.drawImage(plan.canvas, 0, 0);
-		const gain = sheet(w, h),
-			white = { ...paper, rgb: new Uint8ClampedArray(w * h * 3).fill(255) };
-		compose(gain, white, [{ c: heavy.c, ink: SEPIA, strength: 0.9 }]);
-		const reach = Math.ceil(REACH * k),
-			spot = sheet(reach * 2, reach * 2);
+		// white paper with the same tooth, for sheets of ink alone that are multiplied on later
+		const white = { ...paper, rgb: new Uint8ClampedArray(w * h * 3).fill(255) };
 
 		// wearing the ink away: a coarse field of wear, and the order the ink goes in, blotchy and raised fibres first
-		const dissolve = !location.hash.includes('presion'),
-			plain = location.hash.includes('limpio');
-		const bare = sheet(w, h);
-		compose(bare, paper, []);
+		const plain = location.hash.includes('limpio');
 		// the clearing's lines as ink alone, to multiply on top of everything once they stream in
 		const innerInk = sheet(w, h);
 		compose(innerInk, white, [{ c: inner.c, ink: SEPIA, strength: 1.15 }]);
@@ -263,7 +260,7 @@
 		}
 		// the entrance: worn everywhere, deeper in some broad patches, so the plan melts in a patch at a time
 		let deepest = 0;
-		if (dissolve && !still && !entered) {
+		if (!still && !entered) {
 			const hash = (i: number, j: number) => {
 				const v = Math.sin(i * 269.5 + j * 183.3) * 43758.5453;
 				return v - Math.floor(v);
@@ -289,13 +286,14 @@
 		// (frames can run slower than the clock); a resize mid-entrance, which starts the wear afresh, ends it
 		const lettersFrom = (t: number) => {
 			melting = 0;
-			clearingAt = t + PAUSE_MS;
-			bandsAt = clearingAt + HEART_MS + BANDS_AFTER;
+			clearingAt = Math.min(clearingAt, t - LEAD_MS);
+			heartAt = t;
+			bandsAt = heartAt + HEART_MS + BANDS_AFTER;
 		};
-		if (still) [clearingAt, bandsAt] = [-Infinity, -Infinity];
+		if (still) [clearingAt, heartAt, bandsAt] = [-Infinity, -Infinity, -Infinity];
 		else if (!entered && deepest > 0) {
 			melting = deepest;
-			[clearingAt, bandsAt] = [Infinity, Infinity];
+			[clearingAt, heartAt, bandsAt] = [Infinity, Infinity, Infinity];
 		} else if (!entered || melting > 0) lettersFrom(performance.now());
 		entered = true;
 		const lift = new ImageData(hw, hh),
@@ -505,33 +503,11 @@
 			mask.drawImage(after.canvas, 0, 0);
 			out.drawImage(mask.canvas, 0, 0);
 
-			// the walls near the pointer, heavier, fading off steeply with distance: (1 - u²)²
-			const ease = still ? 1 : 0.25;
-			hover.x += (pointer.x - hover.x) * ease;
-			hover.y += (pointer.y - hover.y) * ease;
-			hover.a += (Number(pointer.in) - hover.a) * (still ? 1 : 0.12);
-			if (dissolve) wearAway(now);
-			else if (hover.a > 0.01) {
-				const x = Math.round(hover.x * dpr) - reach,
-					y = Math.round(hover.y * dpr) - reach;
-				spot.globalCompositeOperation = 'copy';
-				spot.drawImage(gain.canvas, x, y, reach * 2, reach * 2, 0, 0, reach * 2, reach * 2);
-				spot.globalCompositeOperation = 'destination-in';
-				const g = spot.createRadialGradient(reach, reach, 0, reach, reach, reach);
-				for (let i = 0; i <= 8; i++) {
-					const u = i / 8;
-					g.addColorStop(u, `rgba(0,0,0,${(1 - u * u) ** 2 * hover.a})`);
-				}
-				spot.fillStyle = g;
-				spot.fillRect(0, 0, reach * 2, reach * 2);
-				out.globalCompositeOperation = 'multiply';
-				out.drawImage(spot.canvas, x, y);
-				out.globalCompositeOperation = 'source-over';
-			}
+			wearAway(now);
 
 			// the clearing's lines, streaming in once the plan is drawn, untouched by the wear: multiplied on top
-			inkThrough(heart, now - clearingAt, heartInk);
-			inkThrough(clearing, now - clearingAt - HEART_MS, innerInk);
+			inkThrough(heart, now - heartAt, heartInk);
+			inkThrough(clearing, now - clearingAt, innerInk);
 			if (!still || worn) raf = requestAnimationFrame(frame);
 		};
 		// the pointer wears the field down near it, steeply less with distance, and the pen draws it back everywhere
@@ -539,7 +515,12 @@
 		const wearAway = (now: number) => {
 			const dt = Math.min(0.1, (now - last) / 1000);
 			last = now;
-			if (melting > 0 && (melting -= dt * REDRAW) <= 0) lettersFrom(now);
+			if (melting > 0) {
+				melting -= dt * REDRAW;
+				// the structure can be told a little before it is all in: the clearing's lines start then
+				if (clearingAt === Infinity && melting <= (LEAD_MS / 1000) * REDRAW) clearingAt = now;
+				if (melting <= 0) lettersFrom(now);
+			}
 			const px = (pointer.x * dpr) / CELL,
 				py = (pointer.y * dpr) / CELL,
 				rc = (WEAR_REACH * k) / CELL;
@@ -632,14 +613,12 @@
 			clearTimeout(timer);
 			timer = window.setTimeout(render, 200);
 		};
-		Promise.all(PLANO_FONTS.map((f) => document.fonts.load(f).catch(() => null))).then(() => {
-			// with reduced motion the lettering is simply there, and stays
-			still = matchMedia('(prefers-reduced-motion: reduce)').matches;
-			render();
-		});
+		fonts = Promise.all(PLANO_FONTS.map((f) => document.fonts.load(f).catch(() => null)));
+		// with reduced motion the lettering is simply there, and stays
+		still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+		render();
 		const move = (e: PointerEvent) => {
 			if (e.pointerType === 'touch') return;
-			if (!pointer.in) [hover.x, hover.y] = [e.clientX, e.clientY];
 			Object.assign(pointer, { x: e.clientX, y: e.clientY, in: true });
 			kick();
 		};

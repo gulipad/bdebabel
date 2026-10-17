@@ -34,7 +34,7 @@ export const DEFAULT_PLANO: PlanoOptions = {
 type Pt = [number, number];
 
 export type Mark =
-	| { kind: 'line'; a: Pt; b: Pt; w: number; alpha?: number; /** a gallery wall */ wall?: true }
+	| { kind: 'line'; a: Pt; b: Pt; w: number; alpha?: number }
 	| { kind: 'circle'; c: Pt; r: number; w: number; alpha?: number }
 	| { kind: 'path'; d: string; w: number; fill?: boolean; alpha?: number }
 	| {
@@ -209,7 +209,7 @@ export function planoScene(o: Partial<PlanoOptions> = {}): PlanoScene {
 		}
 	const seen = new Set<string>();
 	const wall = (a: Pt, b: Pt, t0: number, t1: number) =>
-		plan.push({ kind: 'line', a: lerp(a, b, t0), b: lerp(a, b, t1), w: 1.5, wall: true });
+		plan.push({ kind: 'line', a: lerp(a, b, t0), b: lerp(a, b, t1), w: 1.5 });
 	for (const [x, y] of cells) {
 		const outer = hexPts(x, y, s),
 			inner = hexPts(x, y, s - gap);
