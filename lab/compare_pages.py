@@ -95,12 +95,12 @@ def main():
     if a.set == "three":
         models = {**students(), **gpt2()}
     else:  # the free improvements: checkpoint averaging, then the Library's own sampling
-        babel1 = json.loads((ROOT / "lab/universes/babel-1/manifest.json").read_text())["settings"]
+        babel1 = json.loads((ROOT / "lab/universes/babel-exp-1/manifest.json").read_text())["settings"]
         babel1 = {k: v for k, v in babel1.items() if not k.startswith("steer")}  # steering is GPT-2-only
         models = {**student("baseline", "lab/models/student-66m-a100"), **student("avg3", "lab/models/student-66m-avg3"),
                   **library("avg3-library", "lab/models/student-66m-avg3", babel1)}
     if a.set == "new":  # yesterday's baseline vs the new two-direction model, both through the Library
-        babel1 = json.loads((ROOT / "lab/universes/babel-1/manifest.json").read_text())["settings"]
+        babel1 = json.loads((ROOT / "lab/universes/babel-exp-1/manifest.json").read_text())["settings"]
         babel1 = {k: v for k, v in babel1.items() if not k.startswith("steer")}
         models = {**library("baseline-avg3", "lab/models/student-66m-avg3", babel1),
                   **library("bidir-avg3", "lab/models/bidir-66m-avg3", babel1)}

@@ -9,3 +9,10 @@ __pycache__/
 lab/adapters/
 remote/*.tgz
 remote/runs/
+lab/web/model.bin
+lab/web/model.json
+lab/web/golden.json
+lab/web/golden_long.json
+lab/web/*.wasm
+lab/universes/_cand-*/
+remote/init/

@@ -18,25 +18,30 @@ from transformers import AutoTokenizer
 
 ROOT = Path(__file__).resolve().parent.parent
 LIT = ROOT / "data" / "lit"
-vocab = int(sys.argv[1]) if len(sys.argv) > 1 else 16384
+vocab = int(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].isdigit() else 16384
 rows = [json.loads(l) for l in open(LIT / "pages.jsonl", encoding="utf-8")]
 from collections import Counter
 size = Counter((r["src"], r["id"]) for r in rows)
-books = sorted(b for b, n in size.items() if b[0] in ("gutenberg", "epub") and n >= 40)
-random.Random(1941).shuffle(books)
-held, n = set(), 0
-for b in books:
-    if n >= 0.02 * len(rows): break
-    held.add(b); n += size[b]
-(LIT / "heldout_books.json").write_text(json.dumps(sorted(map(list, held)), indent=0))
+keep = "--keep" in sys.argv  # reuse the existing tokenizer and held-out books (continued training, comparable evals)
+if keep and (LIT / "heldout_books.json").exists():
+    held = {tuple(b) for b in json.loads((LIT / "heldout_books.json").read_text())}
+else:
+    books = sorted(b for b, n in size.items() if b[0] in ("gutenberg", "epub") and n >= 40)
+    random.Random(1941).shuffle(books)
+    held, n = set(), 0
+    for b in books:
+        if n >= 0.02 * len(rows): break
+        held.add(b); n += size[b]
+    (LIT / "heldout_books.json").write_text(json.dumps(sorted(map(list, held)), indent=0))
 heldout = [r["text"] for r in rows if (r["src"], r["id"]) in held]
 pages = [r["text"] for r in rows if (r["src"], r["id"]) not in held]
 random.Random(1941).shuffle(pages)
 val, train = pages[: len(pages) // 100], pages[len(pages) // 100:]
 tdir = LIT / "tokenizer"; tdir.mkdir(exist_ok=True)
-bpe = ByteLevelBPETokenizer()
-bpe.train_from_iterator(train, vocab_size=vocab, min_frequency=2, special_tokens=["<|endoftext|>", "<|r2l|>"])
-bpe.save_model(str(tdir))
+if not (keep and (tdir / "vocab.json").exists()):
+    bpe = ByteLevelBPETokenizer()
+    bpe.train_from_iterator(train, vocab_size=vocab, min_frequency=2, special_tokens=["<|endoftext|>", "<|r2l|>"])
+    bpe.save_model(str(tdir))
 cfg = {"bos_token": "<|endoftext|>", "eos_token": "<|endoftext|>", "unk_token": "<|endoftext|>"}
 (tdir / "tokenizer_config.json").write_text(json.dumps({"tokenizer_class": "GPT2Tokenizer", "model_max_length": 1024, "add_prefix_space": False, **cfg}))
 (tdir / "special_tokens_map.json").write_text(json.dumps(cfg))

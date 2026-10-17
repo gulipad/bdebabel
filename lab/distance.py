@@ -10,7 +10,7 @@ under the universe's model). This script measures where random browsing lands an
 recognizable texts sit, then proposes ring boundaries. Rings are presentation, not part of the
 frozen universe, so they live in rings.json next to the manifest.
 
-    uv run lab/distance.py babel-1 --pages 100
+    uv run lab/distance.py babel-exp-1 --pages 100
 """
 import argparse, gzip, json, random, statistics, sys
 from pathlib import Path

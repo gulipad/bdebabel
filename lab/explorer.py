@@ -9,7 +9,7 @@ Walk hexagons, walls, shelves, volumes and pages; jump to random pages, to the c
 address; search your own text. Every page shows its address, its distance from the center and
 its ring.
 
-    uv run lab/explorer.py [babel-1] [--port 1941]
+    uv run lab/explorer.py [babel-exp-1] [--port 1941]
 """
 import argparse, json, sys, threading, time, webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -120,7 +120,7 @@ button:disabled { opacity:.5; cursor:wait } button:focus-visible, select:focus-v
     <div class="row"><button class="primary" id="random">Página al azar</button><button id="center">Ir al centro</button></div>
     <div><span class="label">Dirección de esta página</span><div class="addr" id="addr">—</div></div>
     <div class="row"><button id="copy">Copiar dirección</button></div>
-    <div><label for="goto">Abrir una dirección</label><input type="text" id="goto" placeholder="babel-1:…:muro:anaquel:volumen:página"></div>
+    <div><label for="goto">Abrir una dirección</label><input type="text" id="goto" placeholder="babel-exp-1:…:muro:anaquel:volumen:página"></div>
     <div class="row"><button id="open">Abrir</button></div>
     <div><label for="q">Buscar un texto</label><textarea id="q" placeholder="Hoy me desperté pensando en ti…"></textarea></div>
     <div class="row"><button class="primary" id="search">Buscar</button><button id="more" disabled>Otra coincidencia</button></div>
@@ -231,7 +231,7 @@ def make_handler(library: Library):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("universe", nargs="?", default="babel-1")
+    ap.add_argument("universe", nargs="?", default="babel-exp-1")
     ap.add_argument("--port", type=int, default=1941)
     ap.add_argument("--no-browser", action="store_true")
     a = ap.parse_args()

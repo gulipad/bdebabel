@@ -69,6 +69,18 @@ DASH_OPEN = re.compile(r"(?<=\s)-(?=[^\W\d_]|[¡¿«])")
 DASH_CLOSE = re.compile(r"(?<=[^\W\d_]|[.,;:!?…»)])-(?=\s|[.,;:!?…]|$)", re.M)
 
 
+CAPS_RUN = re.compile(r"\b[A-ZÁÉÍÓÚÑÜ]+(?:[ ,.;:]+[A-ZÁÉÍÓÚÑÜ]+){2,}\b")
+
+
+def decaps(text: str) -> str:
+    """All-caps runs of 3+ words left inside paragraphs (titles glued to the first line, running headers inside a
+    sentence, shouted emphasis) become sentence case: the words stay, the model never learns to write in capitals."""
+    def fix(m):
+        if not re.search(r"[A-ZÁÉÍÓÚÑÜ]{3}", m[0]) or re.fullmatch(r"[IVXLC ,.;:]+", m[0]): return m[0]  # initials, numerals
+        return m[0][0] + m[0][1:].lower()
+    return CAPS_RUN.sub(fix, text)
+
+
 def dashes(text: str) -> str:
     """Hyphens used as dashes become em dashes, so every page writes dialogue the same way."""
     return DASH_CLOSE.sub("—", DASH_OPEN.sub("—", text))
@@ -112,6 +124,32 @@ def word_counts(sources: list[str]) -> Counter:
     return c
 
 
+# Book furniture the model would otherwise learn to imitate (found by lab/artifact_scan.py in babel-1's pages):
+LETTER_SPACED = re.compile(r"(?<!\w)(?:[A-Za-zÁÉÍÓÚÑÜáéíóúñü] ){4,}[A-Za-zÁÉÍÓÚÑÜáéíóúñü](?!\w)")  # "J U L I O V E R N E"
+LEADING_CAPS = re.compile(r"^((?:[¡¿«—\"“]?[A-ZÁÉÍÓÚÑÜ]{2,}[,.;:!?»”]*\s+)+)(?=\S*[a-záéíóúñü])")    # "UNA tarde…" (small caps)
+
+
+def furniture(paras: list[str]) -> tuple[list[str], Counter]:
+    """Removes running headers and footers, all-caps titles and letter-spaced text; un-capitalizes small-caps openings."""
+    n = Counter(p for p in paras if len(p) < 80)
+    out, c = [], Counter()
+    for p in paras:
+        if len(p) < 80 and n[p] >= 5: c["running header/footer"] += 1; continue          # repeats within the book
+        q = LETTER_SPACED.sub("", p).strip()
+        if q != p: c["letter-spaced text"] += 1
+        if q and not re.search(r"[a-záéíóúñü]", q) and re.search(r"[A-ZÁÉÍÓÚÑÜ]{2}", q) and len(q) < 200:
+            c["all-caps title"] += 1; continue
+        m = LEADING_CAPS.match(q)
+        if m and len(m.group(1).split()) >= 1 and not re.match(r"^[IVXLC]+\b", m.group(1)):
+            caps = m.group(1)
+            fixed = caps.lower()
+            k = next((i for i, ch in enumerate(fixed) if ch.isalpha()), 0)
+            q = fixed[:k] + fixed[k:k + 1].upper() + fixed[k + 1:] + q[len(caps):]
+            c["small-caps opening"] += 1
+        if q: out.append(q)
+    return out, c
+
+
 def boilerplate(src: str) -> set[str]:
     """Short paragraphs that recur across ≥5 documents of a source: publisher notes, licences, transcriber notes."""
     seen = Counter()
@@ -148,6 +186,8 @@ def main():
                 if wrap_ratio(paras) >= 0.10:  # a printed edition's line breaks: rejoin lines and split words
                     paras = [unsplit_words(p, counts) for p in rejoin(paras)]
                     stats[f"{src}: hard-wrapped documents rejoined"] += 1
+                paras, fc = furniture(paras)
+                for k, v in fc.items(): stats[f"book furniture removed: {k}"] += v
                 if src == "epub":  # EPUBs aren't pre-cleaned: unify dialogue dashes and soft hyphens
                     paras = [re.sub(r"^[-–―−]\s*", "—", p.replace("\xad", "")) for p in paras]
                 is_dialogue = lambda p: p.startswith("—") or p.startswith("«") or p.count("«") >= 1
@@ -206,7 +246,7 @@ def main():
     pages = [p for i, p in enumerate(pages) if i not in near]
     stats["pages dropped: near-duplicate of another page"] = len(near)
     # Dashes are normalized at the very end, so the judges' cached verdicts (keyed by page text) stay valid.
-    for p in pages: p["text"] = dashes(p["text"])
+    for p in pages: p["text"] = decaps(dashes(p["text"]))
     with open(OUT / "pages.jsonl", "w", encoding="utf-8") as f:
         for p in pages: f.write(json.dumps(p, ensure_ascii=False) + "\n")
     for name, rows in pending.items():

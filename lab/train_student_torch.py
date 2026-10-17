@@ -46,6 +46,10 @@ def main():
     ap.add_argument("--kd", action="store_true", help="distil from <data>/kd_ids.train.npy + kd_cnt.train.npy")
     ap.add_argument("--ce-weight", type=float, default=0.1, help="α in α·CE + (1−α)·KD (Anshumann et al. 2025: 0.1)")
     ap.add_argument("--r2l", type=float, default=0.0, help="share of pages written right to left (direction tag <|r2l|>)")
+    ap.add_argument("--init", help="start from these weights (safetensors, e.g. a babel model) instead of random")
+    ap.add_argument("--warmup-frac", type=float, default=0.01)
+    ap.add_argument("--decay-frac", type=float, default=0.2, help="share of steps in the final decay to 0 (1.0 = decay all the way)")
+    ap.add_argument("--snapshot-every", type=int, default=0, help="also save weights every N steps (for checkpoint averaging)")
     ap.add_argument("--steps", type=int, default=0, help="stop after N optimizer steps (pre-flight tests)")
     a = ap.parse_args()
     data, out = Path(a.data), Path(a.out); out.mkdir(parents=True, exist_ok=True)
@@ -84,6 +88,10 @@ def main():
     cfg = Config(vocab=tok.get_vocab_size(), **json.loads(a.config))
     torch.manual_seed(a.seed)
     model = Student(cfg).to(dev); init(model)
+    if a.init:
+        from safetensors.torch import load_file
+        model.load_state_dict({k: v.float() for k, v in load_file(a.init).items()})
+        print(f"initialized from {a.init}", flush=True)
     decay = [p for p in model.parameters() if p.ndim >= 2]
     no_decay = [p for p in model.parameters() if p.ndim < 2]
     opt = torch.optim.AdamW([{"params": decay, "weight_decay": a.wd}, {"params": no_decay, "weight_decay": 0.0}],
@@ -199,7 +207,7 @@ def main():
         scale = a.batch_tokens / ntok  # exact mean: rescale for the true token count
         torch._foreach_mul_([p.grad for p in model.parameters() if p.grad is not None], scale)
         norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-        lr = lr_at(step, total_steps, a.lr)
+        lr = lr_at(step, total_steps, a.lr, a.warmup_frac, a.decay_frac)
         for g in opt.param_groups: g["lr"] = lr
         opt.step(); opt.zero_grad(set_to_none=True)
         step += 1; tok_count += ntok
@@ -213,6 +221,7 @@ def main():
             log.append({"step": step, "epoch": epoch, "val_loss": round(vl, 4), "val_bpc": round(bpc, 4), **extra, "time": time.time()})
             print(f"  eval · val loss {vl:.4f} · {bpc:.4f} bits/char" + "".join(f" · {k} {v}" for k, v in extra.items()), flush=True)
             (out / "log.json").write_text(json.dumps(log, indent=1))
+        if a.snapshot_every and step % a.snapshot_every == 0: save_mlx(out / f"step{step}.safetensors")
         if time.time() - last_save > a.save_minutes * 60 or step == total_steps:
             torch.save({"model": model.state_dict(), "opt": opt.state_dict(), "step": step, "epoch": epoch,
                         "seen": seen, "log": log}, ck)

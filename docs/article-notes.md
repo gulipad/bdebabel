@@ -3,7 +3,7 @@
 Raw material for an article about this project. Organized by theme, with the numbers we
 measured and the experiments that taught us something. Kept up to date as the project moves.
 
-Last updated: 2026-10-15 (universe `babel-1`, codec `rans-2`).
+Last updated: 2026-10-17. Universes: `babel-1` (our own 66M model, integer engine, runs on any device; being prepared for release) and `babel-exp-1` (the earlier experiment with stock GPT-2 Spanish, float, never released; measurements marked `babel-exp-1` come from it).
 
 ---
 
@@ -49,11 +49,11 @@ Last updated: 2026-10-15 (universe `babel-1`, codec `rans-2`).
 - **Pigeonhole.** No library of everything can give every page a short name: there are more
   texts than short names. Basile's addresses are as long as the information in a page; ours
   are as long as what the model *can't predict* about the page.
-- **Measured (universe `babel-1`):** a typical page costs ~2,200 bits (1,900–2,400), ~375
+- **Measured (universe `babel-exp-1`):** a typical page costs ~2,200 bits (1,900–2,400), ~375
   characters in base 62. Basile: ~15,500 bits, ~3,000 characters. **About 8× shorter.**
 - Gibberish costs *more* than in Basile's Library (20,000+ bits). We spend the short addresses on
   the pages people visit.
-- **What typed text costs** (bits under `babel-1`): *test* 33 · *Te quiero* 64 · *Gonzalo
+- **What typed text costs** (bits under `babel-exp-1`): *test* 33 · *Te quiero* 64 · *Gonzalo
   Martínez Ruiz* 97 · *Mañana a las ocho en la puerta del Retiro.* 116 · *Hoy me desperté
   pensando en ti, y en la biblioteca infinita.* 185 · first sentence of the Quijote 313.
   Predictability matters more than length: a common phrase is cheap, a name is expensive,
@@ -205,9 +205,9 @@ hexagon, or random jumps), as in Basile, where it is possible if nearly impossib
 
 ## 7. Geography: distance from the center
 
-- **The center has an address: `babel-1:0:1:1:1:1`**, hexagon 0, zero bits away. Each step's
+- **The center has an address (in `babel-exp-1`): `babel-exp-1:0:1:1:1:1`**, hexagon 0, zero bits away. Each step's
   slices are laid out most-likely-first, so small numbers pick the most likely words and number
-  0 is the model's single most expected page. In `babel-1` it is a dialogue of refusal and
+  0 is the model's single most expected page. In `babel-exp-1` it is a dialogue of refusal and
   ignorance: *"—No, no, no, no, no. —Pero, ¿qué? —No lo sé. —Pues, entonces, ¿qué? —Nada. —No,
   no lo sé…"* The center of a library of everything says "I don't know".
 - **Scrambling preserves distance.** Visible addresses are shuffled by a keyed permutation
@@ -342,6 +342,16 @@ it anyway.
 
 **What it writes.** Grammatical, novel-paced 19th-century prose with dialogue, consistent names within
 a page, and drift over a page ("la más llamativa república del tamaño de una iglesia").
+
+**Every device must compute the same numbers.** An address is the exact encoding of a page, so a
+phone and a laptop must agree on every probability to the last digit, and floating point doesn't
+(a 2026 study encoded text with Llama on one Mac and decoded it on another: 0 files came back intact).
+So the model runs in integer arithmetic only: 8-bit weights, fixed-point everything, shipped tables
+for exp, sigmoid and RoPE, and one rounding rule. It costs almost nothing (1.1285 → 1.1294 bits per
+character), and the browser engine reproduces the reference's 16,384 logits bit for bit at every one
+of 400 positions. In a browser it writes a page in about 2 seconds on a laptop; the page's address
+(about 2,400–2,800 bits) is computed back from its text and reopens it exactly. The universe is no
+longer a model plus hardware: it is a list of integers.
 
 **Cost.** Rented GPUs for a day of experiments: about $15. Three models trained from scratch, a
 teacher pass, and the forward/backward comparison.
