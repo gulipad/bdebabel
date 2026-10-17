@@ -7,7 +7,8 @@
 	 * giving its shelves back, while others ink in elsewhere. The pointer leaves its mark on
 	 * the plan, in one of two ways under test: it wears the ink away, and the plan is drawn back (the default), or
 	 * (#presion) near it the walls are drawn a touch heavier and less steady, as if the pen pressed there. The
-	 * sheet arrives worn away, and the plan melts in in patches.
+	 * sheet arrives worn away and the plan melts in in patches, with no lettering yet; then the clearing's lines
+	 * stream in, and a little later the galleries' bands begin.
 	 */
 	import { onMount } from 'svelte';
 	import {
@@ -36,12 +37,13 @@
 		recent: number[] = [],
 		raf = 0,
 		still = false;
-	const BANDS = 7, // bands on the sheet at once
-		GAP_MS = 900, // ms at least between one band starting and the next
-		LETTER_MS = 75, // ms between letters along a band
+	const BANDS = 4, // bands on the sheet at once, at most
+		WRITING = 2, // bands being written at once, at most
+		GAP_MS = 3500, // ms at least between one band starting and the next (give or take a third)
+		LETTER_MS = 130, // ms between letters along a band
 		BLOOM_MS = 650, // ms for a letter to soak in
-		HOLD_MS = 4000, // ms a band stays once written
-		FADE_MS = 2500; // ms for it to fade
+		HOLD_MS = 6000, // ms a band stays once written
+		FADE_MS = 3500; // ms for it to fade
 	const REACH = 170, // board units: how far from the pointer the walls grow heavier
 		HEAVY = 1.4, // how much wider a wall is under the pointer
 		WEAR_REACH = 110, // board units: how far from the pointer the ink wears away
@@ -56,6 +58,13 @@
 	let kick = () => {};
 	/** whether the sheet has made its entrance (it does once, not on every resize) */
 	let entered = false;
+	/** when the clearing's lines start streaming in, and when the galleries' bands may begin; bands begun so far */
+	let clearingAt = -Infinity,
+		bandsAt = -Infinity,
+		melting = 0; // how much of the entrance's deepest wear is still to be drawn back
+	const PAUSE_MS = 500, // ms after the plan has melted in before the clearing's lines start
+		CLEARING_MS = 45, // ms between letters of the clearing's lines, written as one loop, the outer line first
+		BANDS_AFTER = 2500; // ms after the clearing's lines start before the first band
 
 	const sheet = (w: number, h: number) => {
 		const c = document.createElement('canvas');
@@ -194,7 +203,6 @@
 		// the sheet with every lettered gallery's shelves, and with its band instead; a mask per band shows the second
 		const layers = [
 			{ c: plan.c, ink: SEPIA, strength: 1.15 },
-			{ c: inner.c, ink: SEPIA, strength: 1.15 },
 			{ c: notes.c, ink: IRON_GALL, strength: 1.1, tooth: 0.4 }
 		];
 		const before = sheet(w, h),
@@ -209,17 +217,19 @@
 		displace(heavy.c, w, h, k, { scale: 3.4, seed: 57 }); // a less steady hand than the plan's own
 		heavy.c.globalCompositeOperation = 'destination-out';
 		heavy.c.drawImage(plan.canvas, 0, 0);
-		const gain = sheet(w, h);
-		compose(gain, { ...paper, rgb: new Uint8ClampedArray(w * h * 3).fill(255) }, [
-			{ c: heavy.c, ink: SEPIA, strength: 0.9 }
-		]);
+		const gain = sheet(w, h),
+			white = { ...paper, rgb: new Uint8ClampedArray(w * h * 3).fill(255) };
+		compose(gain, white, [{ c: heavy.c, ink: SEPIA, strength: 0.9 }]);
 		const reach = Math.ceil(REACH * k),
 			spot = sheet(reach * 2, reach * 2);
 
 		// wearing the ink away: a coarse field of wear, and the order the ink goes in, blotchy and raised fibres first
 		const dissolve = location.hash !== '#presion';
 		const bare = sheet(w, h);
-		compose(bare, paper, [{ c: inner.c, ink: SEPIA, strength: 1.15 }]);
+		compose(bare, paper, []);
+		// the clearing's lines as ink alone, to multiply on top of everything once they stream in
+		const innerInk = sheet(w, h);
+		compose(innerInk, white, [{ c: inner.c, ink: SEPIA, strength: 1.15 }]);
 		const gw = Math.ceil(w / CELL) + 2,
 			gh = Math.ceil(h / CELL) + 2,
 			wear = new Float32Array(gw * gh);
@@ -248,6 +258,7 @@
 				}
 		}
 		// the entrance: worn everywhere, deeper in some broad patches, so the plan melts in a patch at a time
+		let deepest = 0;
 		if (dissolve && !still && !entered) {
 			const hash = (i: number, j: number) => {
 				const v = Math.sin(i * 269.5 + j * 183.3) * 43758.5453;
@@ -267,18 +278,32 @@
 					const top = hash(a, b) + (hash(a + 1, b) - hash(a, b)) * sx,
 						bot = hash(a, b + 1) + (hash(a + 1, b + 1) - hash(a, b + 1)) * sx;
 					wear[j * gw + i] = 1.05 + 0.9 * (top + (bot - top) * sy);
+					deepest = Math.max(deepest, wear[j * gw + i]);
 				}
 		}
+		// the lettering waits for the plan to melt in: wearAway() says when it has, keeping pace with the wear itself
+		// (frames can run slower than the clock); a resize mid-entrance, which starts the wear afresh, ends it
+		const lettersFrom = (t: number) => {
+			melting = 0;
+			clearingAt = t + PAUSE_MS;
+			bandsAt = clearingAt + BANDS_AFTER;
+		};
+		if (still) [clearingAt, bandsAt] = [-Infinity, -Infinity];
+		else if (!entered && deepest > 0) {
+			melting = deepest;
+			[clearingAt, bandsAt] = [Infinity, Infinity];
+		} else if (!entered || melting > 0) lettersFrom(performance.now());
 		entered = true;
 		const lift = new ImageData(hw, hh),
 			liftC = sheet(hw, hh);
 		let last = performance.now();
 		compose(after, paper, [...layers, { c: letters.c, ink: SEPIA, strength: 1.15 }]);
 
-		// one drop per letter, at the middle of its body, due in turn along its band (ms after the band starts)
+		// one drop per letter, at the middle of its body, due in turn along its line (ms after the line starts)
+		type Drop = { x: number; y: number; r: number; due: number };
 		const drnd = seeded(7);
-		const drops = scene.lettering.map((g) =>
-			ringLetters(letters.c, g.ring).flatMap((m, i) => {
+		const dropsOf = (ring: Extract<Mark, { kind: 'ring' }>, step: number, lag = 0): Drop[] =>
+			ringLetters(letters.c, ring).flatMap((m, i) => {
 				if (m.kind !== 'text') return [];
 				const r = ((m.rot ?? 0) * Math.PI) / 180,
 					[x, y] = at(m.at),
@@ -288,76 +313,91 @@
 						x: x + Math.sin(r) * lift,
 						y: y - Math.cos(r) * lift,
 						r: m.size * 0.9 * k,
-						due: i * LETTER_MS + drnd() * 40
+						due: lag + i * step + drnd() * 40
 					}
 				];
-			})
-		);
-		const written = drops.map((d) => Math.max(0, ...d.map((p) => p.due)) + BLOOM_MS);
-		const life = (g: number) => written[g] + HOLD_MS + FADE_MS;
-		// each band's mask on its own small half-resolution sheet, dissolving in and out like the wear: every pixel
-		// belongs to its nearest letter, and shows once that letter's presence passes the pixel's place in the order
-		const margin = scene.lettering[0] ? (scene.lettering[0].ring.size * 1.6 + 70) * k : 0;
-		const side = 2 * Math.ceil(margin / 2); // half-res px
-		const fields: ({ idx: Int16Array; wgt: Float32Array; ord: Float32Array } | undefined)[] = [];
-		const fieldOf = (g: number, x0: number, y0: number) => {
-			let f = fields[g];
-			if (f) return f;
-			const n = side * side;
-			f = {
+			});
+		/**
+		 * Letters that melt in together, dissolving like the wear: a half-resolution mask over them (at x0, y0 in
+		 * sheet px), where every pixel belongs to its nearest letter and shows once that letter's presence passes
+		 * the pixel's place in the order; and when they are all written.
+		 */
+		interface Strand {
+			drops: Drop[];
+			x0: number;
+			y0: number;
+			sw: number;
+			sh: number;
+			written: number;
+			field?: { idx: Int16Array; wgt: Float32Array; ord: Float32Array };
+			mask?: { c: CanvasRenderingContext2D; img: ImageData; dry: boolean };
+		}
+		const strandOf = (drops: Drop[]): Strand => {
+			const pad = Math.max(0, ...drops.map((d) => d.r)) + 2,
+				xs = drops.map((d) => d.x),
+				ys = drops.map((d) => d.y);
+			const x0 = 2 * Math.floor((Math.min(...xs) - pad) / 2) || 0,
+				y0 = 2 * Math.floor((Math.min(...ys) - pad) / 2) || 0;
+			return {
+				drops,
+				x0,
+				y0,
+				sw: Math.max(1, Math.ceil((Math.max(...xs) + pad - x0) / 2) || 1),
+				sh: Math.max(1, Math.ceil((Math.max(...ys) + pad - y0) / 2) || 1),
+				written: Math.max(0, ...drops.map((d) => d.due)) + BLOOM_MS
+			};
+		};
+		const fieldOf = (st: Strand) => {
+			if (st.field) return st.field;
+			const n = st.sw * st.sh,
+				best = new Float32Array(n).fill(Infinity);
+			const f = {
 				idx: new Int16Array(n).fill(-1),
 				wgt: new Float32Array(n),
 				ord: new Float32Array(n).fill(1)
 			};
-			for (let by = 0; by < side; by++)
-				for (let bx = 0; bx < side; bx++) {
-					const sx = x0 + bx * 2 + 1,
-						sy = y0 + by * 2 + 1,
-						p = by * side + bx;
-					let best = Infinity;
-					drops[g].forEach((d, i) => {
-						const u = Math.hypot(sx - d.x, sy - d.y) / d.r;
-						if (u < 1 && u < best) {
-							best = u;
-							f!.idx[p] = i;
-							f!.wgt[p] = Math.min(1, (1 - u) * 3);
+			// each letter claims the mask pixels it is nearest to, within its reach
+			st.drops.forEach((d, i) => {
+				const bx0 = Math.max(0, Math.floor((d.x - d.r - st.x0) / 2)),
+					bx1 = Math.min(st.sw - 1, Math.ceil((d.x + d.r - st.x0) / 2)),
+					by0 = Math.max(0, Math.floor((d.y - d.r - st.y0) / 2)),
+					by1 = Math.min(st.sh - 1, Math.ceil((d.y + d.r - st.y0) / 2));
+				for (let by = by0; by <= by1; by++)
+					for (let bx = bx0; bx <= bx1; bx++) {
+						const p = by * st.sw + bx,
+							u = Math.hypot(st.x0 + bx * 2 + 1 - d.x, st.y0 + by * 2 + 1 - d.y) / d.r;
+						if (u < 1 && u < best[p]) {
+							best[p] = u;
+							f.idx[p] = i;
+							f.wgt[p] = Math.min(1, (1 - u) * 3);
 						}
-					});
-					const ox = x0 / 2 + bx,
-						oy = y0 / 2 + by;
-					if (ox >= 0 && oy >= 0 && ox < hw && oy < hh) f.ord[p] = order[oy * hw + ox];
+					}
+			});
+			for (let by = 0; by < st.sh; by++)
+				for (let bx = 0; bx < st.sw; bx++) {
+					const ox = st.x0 / 2 + bx,
+						oy = st.y0 / 2 + by;
+					if (ox >= 0 && oy >= 0 && ox < hw && oy < hh)
+						f.ord[by * st.sw + bx] = order[oy * hw + ox];
 				}
-			fields[g] = f;
-			return f;
+			return (st.field = f);
 		};
-		const masks: (
-			| { c: CanvasRenderingContext2D; img: ImageData; x0: number; y0: number; dry: boolean }
-			| undefined
-		)[] = []; // by gallery
-		const maskOf = (g: number, e: number) => {
-			let m = masks[g];
-			if (!m) {
-				const [x, y] = at(scene.lettering[g].c);
-				const c = sheet(side, side);
-				m = {
-					c,
-					img: c.createImageData(side, side),
-					x0: 2 * Math.floor((x - margin) / 2),
-					y0: 2 * Math.floor((y - margin) / 2),
-					dry: false
-				};
-				masks[g] = m;
+		/** The strand's mask at `e` ms after it started, with `going` (1..0) of it left as it melts away. */
+		const maskOf = (st: Strand, e: number, going: number) => {
+			if (!st.mask) {
+				const c = sheet(st.sw, st.sh);
+				st.mask = { c, img: c.createImageData(st.sw, st.sh), dry: false };
 			}
-			// once written and until it starts to go, a band's mask stands still
-			const settled = e >= written[g] && e <= written[g] + HOLD_MS;
-			if (m.dry && settled) return m;
-			const f = fieldOf(g, m.x0, m.y0),
-				going = 1 - Math.min(1, Math.max(0, e - written[g] - HOLD_MS) / FADE_MS),
-				here = drops[g].map((d) =>
+			const m = st.mask;
+			// once written and until it starts to go, a strand's mask stands still
+			const settled = e >= st.written && going === 1;
+			if (m.dry && settled) return m.c;
+			const f = fieldOf(st),
+				here = st.drops.map((d) =>
 					Math.min(going, Math.max(0, Math.min(1, (e - d.due) / BLOOM_MS)))
 				),
 				a = m.img.data;
-			for (let p = 0; p < side * side; p++) {
+			for (let p = 0; p < st.sw * st.sh; p++) {
 				const i = f.idx[p];
 				if (i < 0) {
 					a[p * 4 + 3] = 0;
@@ -368,8 +408,20 @@
 			}
 			m.c.putImageData(m.img, 0, 0);
 			m.dry = settled;
-			return m;
+			return m.c;
 		};
+		const strands = scene.lettering.map((g) => strandOf(dropsOf(g.ring, LETTER_MS)));
+		const written = strands.map((st) => st.written);
+		const life = (g: number) => written[g] + HOLD_MS + FADE_MS;
+		const clearing = strandOf(
+			scene.plan
+				.filter((m) => m.kind === 'ring')
+				.reduce<Drop[]>((ds, m) => {
+					const lag = ds.length ? ds[ds.length - 1].due + CLEARING_MS : 0;
+					return [...ds, ...dropsOf(m, CLEARING_MS, lag)];
+				}, [])
+		);
+		const cspot = sheet(clearing.sw * 2, clearing.sh * 2);
 		const far = (g: number) =>
 			bands.every(
 				(b) =>
@@ -387,10 +439,9 @@
 			else {
 				// bands that have faded make way for new ones, in galleries away from the others and not just used
 				bands = bands.filter((b) => now - b.start < life(b.g));
-				masks.forEach((_, g) => {
-					if (!bands.some((b) => b.g === g)) masks[g] = undefined;
-				});
-				while (bands.length < BANDS) {
+				// (a band waiting to start counts as being written)
+				const writing = () => bands.filter((b) => now - b.start < written[b.g]).length;
+				while (bands.length < BANDS && writing() < WRITING && bandsAt < Infinity) {
 					const free = scene.lettering
 						.map((_, i) => i)
 						.filter((i) => !recent.includes(i) && far(i));
@@ -399,7 +450,7 @@
 					const last = Math.max(-Infinity, ...bands.map((b) => b.start));
 					bands.push({
 						g,
-						start: Math.max(now + 300, last + GAP_MS * (0.7 + Math.random() * 0.6))
+						start: Math.max(now + 300, bandsAt, last + GAP_MS * (0.7 + Math.random() * 0.6))
 					});
 					recent = [g, ...recent].slice(0, 3);
 				}
@@ -410,8 +461,9 @@
 			for (const b of bands) {
 				const e = now - b.start;
 				if (e < 0) continue;
-				const m = maskOf(b.g, e);
-				mask.drawImage(m.c.canvas, m.x0, m.y0, side * 2, side * 2);
+				const st = strands[b.g],
+					going = 1 - Math.min(1, Math.max(0, e - st.written - HOLD_MS) / FADE_MS);
+				mask.drawImage(maskOf(st, e, going).canvas, st.x0, st.y0, st.sw * 2, st.sh * 2);
 			}
 			mask.globalCompositeOperation = 'source-in';
 			mask.drawImage(after.canvas, 0, 0);
@@ -440,6 +492,19 @@
 				out.drawImage(spot.canvas, x, y);
 				out.globalCompositeOperation = 'source-over';
 			}
+
+			// the clearing's lines, streaming in once the plan is drawn, untouched by the wear: multiplied on top
+			const ce = now - clearingAt;
+			if (ce > 0 && clearing.drops.length) {
+				const [W, H] = [clearing.sw * 2, clearing.sh * 2];
+				cspot.globalCompositeOperation = 'copy';
+				cspot.drawImage(maskOf(clearing, ce, 1).canvas, 0, 0, W, H);
+				cspot.globalCompositeOperation = 'source-in';
+				cspot.drawImage(innerInk.canvas, clearing.x0, clearing.y0, W, H, 0, 0, W, H);
+				out.globalCompositeOperation = 'multiply';
+				out.drawImage(cspot.canvas, clearing.x0, clearing.y0);
+				out.globalCompositeOperation = 'source-over';
+			}
 			if (!still || worn) raf = requestAnimationFrame(frame);
 		};
 		// the pointer wears the field down near it, steeply less with distance, and the pen draws it back everywhere
@@ -447,6 +512,7 @@
 		const wearAway = (now: number) => {
 			const dt = Math.min(0.1, (now - last) / 1000);
 			last = now;
+			if (melting > 0 && (melting -= dt * REDRAW) <= 0) lettersFrom(now);
 			const px = (pointer.x * dpr) / CELL,
 				py = (pointer.y * dpr) / CELL,
 				rc = (WEAR_REACH * k) / CELL;
