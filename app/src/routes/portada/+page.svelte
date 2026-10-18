@@ -8,7 +8,9 @@
 	 * the plan is drawn back after it. The sheet arrives worn away and the plan melts in in patches, with no
 	 * lettering yet; as it is nearly in, the clearing's lines start to stream, and once it is in, the heart of the
 	 * clearing melts in (a dark pool of ink with the title left unstained in it, or, with #limpio, the title
-	 * alone); a little later the galleries' bands begin.
+	 * alone); a little later the galleries' bands begin, and the ways into the city appear under the title.
+	 * Within the clearing the pointer is gentler: it takes single words from its lines, and only a little from
+	 * the heart.
 	 */
 	import { onMount } from 'svelte';
 	import {
@@ -48,10 +50,20 @@
 	const WEAR_REACH = 110, // board units: how far from the pointer the ink wears away
 		EAT = 2.5, // how fast it wears, in full wear per second at the pointer
 		REDRAW = 0.35, // how fast it is drawn back, per second (about three seconds from bare paper)
-		CELL = 8; // sheet px per cell of the wear field
+		CELL = 8, // sheet px per cell of the wear field
+		WORD_REACH = 12, // board units: how near the pointer a word of the clearing's lines must be to go
+		NEAR_REACH = 45, // board units: the pointer's reach in the heart of the clearing
+		HEART_CAP = 0.45; // the most the pointer takes from the heart
+
+	/** the ways into the city, under the title */
+	const WAYS = ['Comprender', 'Hojear', 'Buscar'];
+	/** where the ways sit (css px: the board's centre, and px per board unit), how far melted in (0..1), on what */
+	let ways = $state({ x: 0, y: 0, k: 1 }),
+		waysIn = $state(0),
+		onInk = $state(true);
 
 	/** the pointer, in css px */
-	const pointer = { x: 0, y: 0, in: false };
+	const pointer = { x: 0, y: 0, in: false, onWays: false };
 	/** asks for a frame when nothing else is drawing them (a still cover) */
 	let kick = () => {};
 	/** whether the sheet has made its entrance (it does once, not on every resize) */
@@ -61,9 +73,12 @@
 		heartAt = -Infinity,
 		bandsAt = -Infinity,
 		melting = 0; // how much of the entrance's deepest wear is still to be drawn back
-	const LEAD_MS = 500, // ms before the plan has fully melted in that the clearing's lines start
+	const LEAD_MS = 2700, // ms before the plan has fully melted in that the clearing's lines start (the last of it is faint)
 		CLEARING_MS = 45, // ms between letters of the clearing's lines, written as one loop, the outer line first
-		HEART_MS = 3500, // ms for the heart of the clearing to melt in, starting once the plan is in
+		HEART_AFTER = 900, // ms after the clearing's lines start that the heart melts in (by their fourth word)
+		HEART_MS = 3500, // ms for the heart of the clearing to melt in, from the middle out
+		WAYS_AFTER = 2000, // ms after the heart starts that the ways melt in, as the title finishes
+		WAYS_MS = 1500, // ms for the ways to melt in
 		BANDS_AFTER = 2500; // ms after the heart has melted in before the first band
 
 	const sheet = (w: number, h: number) => {
@@ -228,9 +243,15 @@
 
 		// wearing the ink away: a coarse field of wear, and the order the ink goes in, blotchy and raised fibres first
 		const plain = location.hash.includes('limpio');
+		onInk = !plain;
+		ways = {
+			x: (ox + scene.centre.c[0] * k) / dpr,
+			y: (oy + scene.centre.c[1] * k) / dpr,
+			k: k / dpr
+		};
 		// the clearing's lines as ink alone, to multiply on top of everything once they stream in
 		const innerInk = sheet(w, h);
-		compose(innerInk, white, [{ c: inner.c, ink: SEPIA, strength: 1.15 }]);
+
 		const gw = Math.ceil(w / CELL) + 2,
 			gh = Math.ceil(h / CELL) + 2,
 			wear = new Float32Array(gw * gh);
@@ -287,7 +308,7 @@
 		const lettersFrom = (t: number) => {
 			melting = 0;
 			clearingAt = Math.min(clearingAt, t - LEAD_MS);
-			heartAt = t;
+			heartAt = clearingAt + HEART_AFTER;
 			bandsAt = heartAt + HEART_MS + BANDS_AFTER;
 		};
 		if (still) [clearingAt, heartAt, bandsAt] = [-Infinity, -Infinity, -Infinity];
@@ -299,10 +320,16 @@
 		const lift = new ImageData(hw, hh),
 			liftC = sheet(hw, hh);
 		let last = performance.now();
-		compose(after, paper, [...layers, { c: letters.c, ink: SEPIA, strength: 1.15 }]);
 
 		// one drop per letter, at the middle of its body, due in turn along its line (ms after the line starts)
-		type Drop = { x: number; y: number; r: number; due: number; /** ms to melt in */ dur?: number };
+		type Drop = {
+			x: number;
+			y: number;
+			r: number;
+			due: number;
+			/** ms to melt in */ dur?: number;
+			/** which word of its strand the letter belongs to */ word?: number;
+		};
 		const drnd = seeded(7);
 		const dropsOf = (ring: Extract<Mark, { kind: 'ring' }>, step: number, lag = 0): Drop[] =>
 			ringLetters(letters.c, ring).flatMap((m, i) => {
@@ -315,7 +342,8 @@
 						x: x + Math.sin(r) * lift,
 						y: y - Math.cos(r) * lift,
 						r: m.size * 0.9 * k,
-						due: lag + i * step + drnd() * 40
+						due: lag + i * step + drnd() * 40,
+						word: m.word
 					}
 				];
 			});
@@ -386,20 +414,32 @@
 				}
 			return (st.field = f);
 		};
+		/**
+		 * What the pointer has taken from a strand, up to `cap`: per letter (0..1), or per place (sheet px).
+		 */
+		type Touch = {
+			letters?: Float32Array;
+			place?: (x: number, y: number) => number;
+			cap: number;
+			on: boolean;
+		};
 		/** The strand's mask at `e` ms after it started, with `going` (1..0) of it left as it melts away. */
-		const maskOf = (st: Strand, e: number, going: number) => {
+		const maskOf = (st: Strand, e: number, going: number, touch?: Touch) => {
 			if (!st.mask) {
 				const c = sheet(st.sw, st.sh);
 				st.mask = { c, img: c.createImageData(st.sw, st.sh), dry: false };
 			}
 			const m = st.mask;
 			// once written and until it starts to go, a strand's mask stands still
-			const settled = e >= st.written && going === 1;
+			const settled = e >= st.written && going === 1 && !touch?.on;
 			if (m.dry && settled) return m.c;
 			const f = fieldOf(st),
-				here = st.drops.map((d) =>
-					Math.min(going, Math.max(0, Math.min(1, (e - d.due) / (d.dur ?? BLOOM_MS))))
+				here = st.drops.map(
+					(d, i) =>
+						Math.min(going, Math.max(0, Math.min(1, (e - d.due) / (d.dur ?? BLOOM_MS)))) *
+						(1 - (touch?.letters ? touch.cap * touch.letters[i] : 0))
 				),
+				place = touch?.on ? touch.place : undefined,
 				a = m.img.data;
 			for (let p = 0; p < st.sw * st.sh; p++) {
 				const i = f.idx[p];
@@ -407,7 +447,12 @@
 					a[p * 4 + 3] = 0;
 					continue;
 				}
-				const t = Math.min(1, Math.max(0, (here[i] * f.wgt[p] * 1.25 - f.ord[p] + 0.08) / 0.16));
+				let v = here[i] * f.wgt[p];
+				if (place)
+					v *=
+						1 -
+						touch!.cap * place(st.x0 + (p % st.sw) * 2 + 1, st.y0 + Math.floor(p / st.sw) * 2 + 1);
+				const t = Math.min(1, Math.max(0, (v * 1.25 - f.ord[p] + 0.08) / 0.16));
 				a[p * 4 + 3] = t * t * (3 - 2 * t) * 255;
 			}
 			m.c.putImageData(m.img, 0, 0);
@@ -421,41 +466,135 @@
 			scene.plan
 				.filter((m) => m.kind === 'ring')
 				.reduce<Drop[]>((ds, m) => {
-					const lag = ds.length ? ds[ds.length - 1].due + CLEARING_MS : 0;
-					return [...ds, ...dropsOf(m, CLEARING_MS, lag)];
+					const lag = ds.length ? ds[ds.length - 1].due + CLEARING_MS : 0,
+						words = ds.length ? (ds[ds.length - 1].word ?? 0) + 1 : 0;
+					return [
+						...ds,
+						...dropsOf(m, CLEARING_MS, lag).map((d) => ({ ...d, word: (d.word ?? 0) + words }))
+					];
 				}, [])
 		);
 
 		// the heart of the clearing: the title, either left unstained in a pool of ink or written in ink alone
 		const [hx, hy] = at(scene.centre.c),
 			hr = scene.centre.r * k;
+		// it melts in from the middle out, as one drop reaching the whole of it
+		const heart = strandOf([{ x: hx, y: hy, r: hr * 1.6, due: 0, dur: HEART_MS }]);
+		// each sheet of ink is only needed where its strands are: the bands' galleries, the clearing, its heart
+		const rectOf = (st: Strand) => ({ x: st.x0, y: st.y0, w: st.sw * 2, h: st.sh * 2 });
+		compose(
+			after,
+			paper,
+			[...layers, { c: letters.c, ink: SEPIA, strength: 1.15 }],
+			strands.map(rectOf)
+		);
+		compose(innerInk, white, [{ c: inner.c, ink: SEPIA, strength: 1.15 }], [rectOf(clearing)]);
 		const titled = inkLayer(w, h);
 		draw(titled.c, scene.centre.title);
 		const heartInk = sheet(w, h);
 		if (plain) {
 			displace(titled.c, w, h, k);
-			compose(heartInk, white, [{ c: titled.c, ink: IRON_GALL, strength: 1.2, tooth: 0.4 }]);
+			compose(
+				heartInk,
+				white,
+				[{ c: titled.c, ink: IRON_GALL, strength: 1.2, tooth: 0.4 }],
+				[rectOf(heart)]
+			);
 		} else {
 			const pond = inkLayer(w, h);
 			pool(pond.c, paper, { cx: hx, cy: hy, r: hr, unit: k, reserve: titled.c });
-			compose(heartInk, white, [{ c: pond.c, ink: IRON_GALL, strength: 1, tooth: 0.5 }]);
+			compose(
+				heartInk,
+				white,
+				[{ c: pond.c, ink: IRON_GALL, strength: 1, tooth: 0.5 }],
+				[rectOf(heart)]
+			);
 		}
-		// it melts in from the middle out, as one drop reaching the whole of it
-		const heart = strandOf([{ x: hx, y: hy, r: hr * 1.6, due: 0, dur: HEART_MS }]);
 
 		// a strand's ink, through its mask, multiplied onto the sheet on top of everything (nothing wears it away)
-		const inkThrough = (st: Strand, e: number, ink: CanvasRenderingContext2D) => {
+		const inkThrough = (st: Strand, e: number, ink: CanvasRenderingContext2D, touch?: Touch) => {
 			if (e <= 0 || !st.drops.length) return;
 			const [W, H] = [st.sw * 2, st.sh * 2];
 			const spot = (st.spot ??= sheet(W, H));
 			spot.globalCompositeOperation = 'copy';
-			spot.drawImage(maskOf(st, e, 1).canvas, 0, 0, W, H);
+			spot.drawImage(maskOf(st, e, 1, touch).canvas, 0, 0, W, H);
 			spot.globalCompositeOperation = 'source-in';
 			spot.drawImage(ink.canvas, st.x0, st.y0, W, H, 0, 0, W, H);
 			out.globalCompositeOperation = 'multiply';
 			out.drawImage(spot.canvas, st.x0, st.y0);
 			out.globalCompositeOperation = 'source-over';
 		};
+		// the pointer in the clearing: whole words of its lines go (and are drawn back), one at a time as it passes;
+		// in the heart, a small field of wear, of which only a part is ever taken
+		const wordsWorn = new Float32Array((clearing.drops.at(-1)?.word ?? 0) + 1);
+		const lineTouch: Touch = {
+			letters: new Float32Array(clearing.drops.length),
+			cap: 1,
+			on: false
+		};
+		const near = {
+			x0: heart.x0,
+			y0: heart.y0,
+			cw: Math.ceil((heart.sw * 2) / CELL) + 2,
+			ch: Math.ceil((heart.sh * 2) / CELL) + 2
+		};
+		const nearWear = new Float32Array(near.cw * near.ch);
+		const heartTouch: Touch = {
+			cap: HEART_CAP,
+			on: false,
+			place: (x, y) => {
+				const gx = (x - near.x0) / CELL,
+					gy = (y - near.y0) / CELL,
+					i = Math.floor(gx),
+					j = Math.floor(gy);
+				if (i < 0 || j < 0 || i >= near.cw - 1 || j >= near.ch - 1) return 0;
+				const fx = gx - i,
+					fy = gy - j,
+					n = j * near.cw + i;
+				return (
+					(nearWear[n] * (1 - fx) + nearWear[n + 1] * fx) * (1 - fy) +
+					(nearWear[n + near.cw] * (1 - fx) + nearWear[n + near.cw + 1] * fx) * fy
+				);
+			}
+		};
+		const touchCentre = (dt: number) => {
+			const px = pointer.x * dpr,
+				py = pointer.y * dpr,
+				reach = WORD_REACH * k;
+			const hot = new Uint8Array(wordsWorn.length);
+			if (pointer.in && !pointer.onWays)
+				clearing.drops.forEach((d) => {
+					if (Math.hypot(d.x - px, d.y - py) < reach) hot[d.word ?? 0] = 1;
+				});
+			let on = false;
+			for (let wd = 0; wd < wordsWorn.length; wd++) {
+				const v = hot[wd] ? wordsWorn[wd] + dt * EAT : wordsWorn[wd] - dt * REDRAW;
+				wordsWorn[wd] = Math.min(1, Math.max(0, v));
+				on ||= wordsWorn[wd] > 0;
+			}
+			// one frame more after the last word comes back, so the mask is redrawn whole
+			lineTouch.on = on || lineTouch.on;
+			if (!on && lineTouch.on) lineTouch.on = lineTouch.letters!.some((v) => v > 0);
+			clearing.drops.forEach((d, i) => (lineTouch.letters![i] = wordsWorn[d.word ?? 0]));
+			const gx = (px - near.x0) / CELL,
+				gy = (py - near.y0) / CELL,
+				rc = (NEAR_REACH * k) / CELL,
+				pressing = pointer.in && !pointer.onWays;
+			let hon = false;
+			for (let j = 0; j < near.ch; j++)
+				for (let i = 0; i < near.cw; i++) {
+					const n = j * near.cw + i;
+					let v = nearWear[n] - dt * REDRAW;
+					if (pressing) {
+						const u = Math.hypot(i - gx, j - gy) / rc;
+						if (u < 1) v += dt * EAT * (1 - u * u) ** 2;
+					}
+					nearWear[n] = Math.min(1, Math.max(0, v));
+					hon ||= nearWear[n] > 0;
+				}
+			heartTouch.on = hon;
+		};
+
 		const far = (g: number) =>
 			bands.every(
 				(b) =>
@@ -506,9 +645,12 @@
 			wearAway(now);
 
 			// the clearing's lines, streaming in once the plan is drawn, untouched by the wear: multiplied on top
-			inkThrough(heart, now - heartAt, heartInk);
-			inkThrough(clearing, now - clearingAt, innerInk);
-			if (!still || worn) raf = requestAnimationFrame(frame);
+			inkThrough(heart, now - heartAt, heartInk, heartTouch);
+			inkThrough(clearing, now - clearingAt, innerInk, lineTouch);
+			// the ways melt in as the title finishes
+			const wi = Math.min(1, Math.max(0, (now - heartAt - WAYS_AFTER) / WAYS_MS));
+			if (wi !== waysIn) waysIn = wi;
+			if (!still || worn || lineTouch.on || heartTouch.on) raf = requestAnimationFrame(frame);
 		};
 		// the pointer wears the field down near it, steeply less with distance, and the pen draws it back everywhere
 		let worn = false;
@@ -518,9 +660,13 @@
 			if (melting > 0) {
 				melting -= dt * REDRAW;
 				// the structure can be told a little before it is all in: the clearing's lines start then
-				if (clearingAt === Infinity && melting <= (LEAD_MS / 1000) * REDRAW) clearingAt = now;
+				if (clearingAt === Infinity && melting <= (LEAD_MS / 1000) * REDRAW) {
+					clearingAt = now;
+					heartAt = now + HEART_AFTER;
+				}
 				if (melting <= 0) lettersFrom(now);
 			}
+			touchCentre(dt);
 			const px = (pointer.x * dpr) / CELL,
 				py = (pointer.y * dpr) / CELL,
 				rc = (WEAR_REACH * k) / CELL;
@@ -555,20 +701,30 @@
 				Y0 = Math.max(0, (y0 - 1) * step),
 				X1 = Math.min(hw, (x1 + 2) * step),
 				Y1 = Math.min(hh, (y1 + 2) * step);
-			for (let y = Y0; y < Y1; y++)
-				for (let x = X0; x < X1; x++) {
-					const gx = x / step,
-						gy = y / step,
-						i = Math.floor(gx),
-						j = Math.floor(gy),
-						fx = gx - i,
-						fy = gy - j,
-						n = j * gw + i;
-					const v =
-						(wear[n] * (1 - fx) + wear[n + 1] * fx) * (1 - fy) +
-						(wear[n + gw] * (1 - fx) + wear[n + gw + 1] * fx) * fy;
-					const t = Math.min(1, Math.max(0, (v * 1.25 - order[y * hw + x] + 0.08) / 0.16));
-					d[(y * hw + x) * 4 + 3] = t * t * (3 - 2 * t) * 255;
+			// a cell at a time: one with no wear is left alone, one worn past every place in the order is bare
+			for (let j = Math.floor(Y0 / step); j * step < Y1; j++)
+				for (let i = Math.floor(X0 / step); i * step < X1; i++) {
+					const n = j * gw + i,
+						c00 = wear[n],
+						c10 = wear[n + 1],
+						c01 = wear[n + gw],
+						c11 = wear[n + gw + 1];
+					const lo = Math.min(c00, c10, c01, c11),
+						hi = Math.max(c00, c10, c01, c11),
+						flat = hi === 0 ? 0 : lo >= 0.87 ? 255 : -1;
+					for (let y = Math.max(Y0, j * step); y < Math.min(Y1, (j + 1) * step); y++)
+						for (let x = Math.max(X0, i * step); x < Math.min(X1, (i + 1) * step); x++) {
+							const p = (y * hw + x) * 4 + 3;
+							if (flat >= 0) {
+								d[p] = flat;
+								continue;
+							}
+							const fx = x / step - i,
+								fy = y / step - j;
+							const v = (c00 * (1 - fx) + c10 * fx) * (1 - fy) + (c01 * (1 - fx) + c11 * fx) * fy;
+							const t = Math.min(1, Math.max(0, (v * 1.25 - order[y * hw + x] + 0.08) / 0.16));
+							d[p] = t * t * (3 - 2 * t) * 255;
+						}
 				}
 			liftC.putImageData(lift, 0, 0, X0, Y0, X1 - X0, Y1 - Y0);
 			mask.globalCompositeOperation = 'copy';
@@ -584,7 +740,17 @@
 				(Y1 - Y0) * 2
 			);
 			mask.globalCompositeOperation = 'source-in';
-			mask.drawImage(bare.canvas, 0, 0);
+			mask.drawImage(
+				bare.canvas,
+				X0 * 2,
+				Y0 * 2,
+				(X1 - X0) * 2,
+				(Y1 - Y0) * 2,
+				X0 * 2,
+				Y0 * 2,
+				(X1 - X0) * 2,
+				(Y1 - Y0) * 2
+			);
 			mask.globalCompositeOperation = 'source-over';
 			out.drawImage(
 				mask.canvas,
@@ -644,6 +810,39 @@
 
 <div class="stage">
 	<canvas bind:this={canvas} aria-label="Plano de las galerías de la Ciudad de Babel"></canvas>
+	<!-- the ways melt in like the ink: a blotchy, grainy noise that passes a threshold rising with `waysIn` -->
+	<svg class="defs" aria-hidden="true">
+		<filter id="ways-melt" x="-10%" y="-20%" width="120%" height="140%">
+			<feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="4" seed="7" />
+			<feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  1 0 0 0 0" />
+			<feComponentTransfer result="melt">
+				<feFuncA type="linear" slope="8" intercept={-5.8 + waysIn * 4.6} />
+			</feComponentTransfer>
+			<feComposite in="SourceGraphic" in2="melt" operator="in" />
+		</filter>
+	</svg>
+	<nav
+		class="ways"
+		class:shown={waysIn > 0}
+		class:melting={waysIn > 0 && waysIn < 1}
+		inert={waysIn < 1}
+		class:on-ink={onInk}
+		style:--x="{ways.x}px"
+		style:--y="{ways.y}px"
+		style:--k={ways.k}
+		onpointerenter={() => (pointer.onWays = true)}
+		onpointerleave={() => (pointer.onWays = false)}
+	>
+		{#each WAYS as way (way)}
+			<button type="button">
+				<span>{way}</span>
+				<!-- a pen stroke under the word, drawn on hover -->
+				<svg viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true">
+					<path d="M3 6.2 C 22 4.6, 41 7.4, 60 5.6 S 88 4.4, 97 5.4" />
+				</svg>
+			</button>
+		{/each}
+	</nav>
 </div>
 
 <style>
@@ -658,5 +857,85 @@
 		display: block;
 		width: 100%;
 		height: 100%;
+	}
+
+	/* the ways into the city: under the title, in its face; paper on the pool of ink, ink on bare paper */
+	.ways {
+		--ink: rgb(40 28 20);
+		position: absolute;
+		left: var(--x);
+		top: calc(var(--y) + 44px * var(--k));
+		transform: translateX(-50%);
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: calc(6px * var(--k));
+		visibility: hidden;
+	}
+	.defs {
+		position: absolute;
+		width: 0;
+		height: 0;
+	}
+	.ways.on-ink {
+		--ink: rgb(236 222 192);
+	}
+	.ways.shown {
+		visibility: visible;
+	}
+	.ways.melting {
+		filter: url(#ways-melt);
+	}
+	.ways button {
+		position: relative;
+		padding: calc(3px * var(--k)) calc(8px * var(--k));
+		border: 0;
+		background: none;
+		color: var(--ink);
+		font:
+			calc(15px * var(--k)) 'IM Fell English SC',
+			Georgia,
+			serif;
+		letter-spacing: calc(3px * var(--k));
+		cursor: pointer;
+		transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.3, 1);
+	}
+	.ways button:hover,
+	.ways button:focus-visible {
+		transform: scale(1.07);
+	}
+	.ways button:focus-visible {
+		outline: none;
+	}
+	.ways svg {
+		position: absolute;
+		left: 8%;
+		right: 8%;
+		bottom: calc(-1px * var(--k));
+		width: 84%;
+		height: calc(6px * var(--k));
+		overflow: visible;
+	}
+	.ways path {
+		fill: none;
+		stroke: var(--ink);
+		stroke-width: calc(1.3px * var(--k));
+		stroke-linecap: round;
+		vector-effect: non-scaling-stroke;
+	}
+	/* the stroke is drawn from the left, as a pen would */
+	.ways svg {
+		clip-path: inset(-50% 100% -50% 0);
+		transition: clip-path 0.45s cubic-bezier(0.3, 0.6, 0.2, 1);
+	}
+	.ways button:hover svg,
+	.ways button:focus-visible svg {
+		clip-path: inset(-50% 0 -50% 0);
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.ways button,
+		.ways svg {
+			transition: none;
+		}
 	}
 </style>

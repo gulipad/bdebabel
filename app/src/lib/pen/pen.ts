@@ -34,6 +34,28 @@ function noise(x: number, y: number, seed: number) {
 	return a + (b - a) * uy;
 }
 
+/**
+ * The same value noise, read from a table of its lattice values: for a field sampled at every pixel, each lattice
+ * value is hashed once instead of four times per pixel. The table covers x in [0, cols - 1), y in [0, rows - 1).
+ */
+function lattice(cols: number, rows: number, seed: number) {
+	const t = new Float64Array(cols * rows);
+	for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) t[j * cols + i] = hash(i, j, seed);
+	return { t, cols };
+}
+function tnoise({ t, cols }: { t: Float64Array; cols: number }, x: number, y: number) {
+	const i = Math.floor(x),
+		j = Math.floor(y),
+		fx = x - i,
+		fy = y - j;
+	const ux = fx * fx * (3 - 2 * fx),
+		uy = fy * fy * (3 - 2 * fy),
+		n = j * cols + i;
+	const a = t[n] + (t[n + 1] - t[n]) * ux;
+	const b = t[n + cols] + (t[n + cols + 1] - t[n + cols]) * ux;
+	return a + (b - a) * uy;
+}
+
 export interface Paper {
 	w: number;
 	h: number;
@@ -54,17 +76,33 @@ export function makePaper(
 	const cx = w / 2,
 		cy = h / 2,
 		rmax = Math.hypot(cx, cy);
+	// the cloud is broad: sampled every 8 px and interpolated
+	const C = 8,
+		cw = Math.ceil(w / C) + 2,
+		clouds = new Float32Array(cw * (Math.ceil(h / C) + 2));
+	for (let j = 0; j * C < h + C; j++)
+		for (let i = 0; i < cw; i++)
+			clouds[j * cw + i] =
+				noise((i * C) / (260 * scale), (j * C) / (200 * scale), seed + 2) * 0.6 +
+				noise((i * C) / (90 * scale), (j * C) / (70 * scale), seed + 3) * 0.4;
+	const fine = lattice(Math.ceil(w / (1.6 * scale)) + 2, Math.ceil(h / (1.6 * scale)) + 2, seed),
+		broad = lattice(Math.ceil(w / (4.5 * scale)) + 2, Math.ceil(h / (3.5 * scale)) + 2, seed + 1);
 	for (let y = 0; y < h; y++)
 		for (let x = 0; x < w; x++) {
 			const i = y * w + x;
 			// tooth: two fine octaves (scaled to device pixels so it looks the same on any screen)
 			const g =
-				0.6 * noise(x / (1.6 * scale), y / (1.6 * scale), seed) +
-				0.4 * noise(x / (4.5 * scale), y / (3.5 * scale), seed + 1);
+				0.6 * tnoise(fine, x / (1.6 * scale), y / (1.6 * scale)) +
+				0.4 * tnoise(broad, x / (4.5 * scale), y / (3.5 * scale));
 			grain[i] = g;
+			const ci = Math.floor(x / C),
+				cj = Math.floor(y / C),
+				fx = x / C - ci,
+				fy = y / C - cj,
+				n = cj * cw + ci;
 			const cloud =
-				noise(x / (260 * scale), y / (200 * scale), seed + 2) * 0.6 +
-				noise(x / (90 * scale), y / (70 * scale), seed + 3) * 0.4;
+				(clouds[n] * (1 - fx) + clouds[n + 1] * fx) * (1 - fy) +
+				(clouds[n + cw] * (1 - fx) + clouds[n + cw + 1] * fx) * fy;
 			const rim = Math.max(0, Math.hypot(x - cx, y - cy) / rmax - 0.62) / 0.38;
 			const k = 1 + (g - 0.5) * 0.05 - (cloud - 0.5) * 0.05 - rim * rim * 0.08;
 			rgb[i * 3] = tint[0] * k;
@@ -190,39 +228,65 @@ export function inkLayer(w: number, h: number) {
 export function compose(
 	out: CanvasRenderingContext2D,
 	paper: Paper,
-	layers: {
-		c: CanvasRenderingContext2D;
-		ink: [number, number, number];
-		strength: number;
-		tooth?: number;
-	}[]
+	layers: Layer[],
+	/** only these parts of the sheet, when given; the rest of `out` is left as it is */
+	rects?: { x: number; y: number; w: number; h: number }[]
 ) {
-	const { w, h, grain, rgb } = paper;
-	const img = out.createImageData(w, h);
+	const { w, h } = paper;
+	for (const r of rects ?? [{ x: 0, y: 0, w, h }]) {
+		const x0 = Math.max(0, Math.floor(r.x)),
+			y0 = Math.max(0, Math.floor(r.y)),
+			x1 = Math.min(w, Math.ceil(r.x + r.w)),
+			y1 = Math.min(h, Math.ceil(r.y + r.h));
+		if (x1 > x0 && y1 > y0) composeRect(out, paper, layers, x0, y0, x1 - x0, y1 - y0);
+	}
+}
+
+type Layer = {
+	c: CanvasRenderingContext2D;
+	ink: [number, number, number];
+	strength: number;
+	tooth?: number;
+};
+
+function composeRect(
+	out: CanvasRenderingContext2D,
+	paper: Paper,
+	layers: Layer[],
+	x0: number,
+	y0: number,
+	rw: number,
+	rh: number
+) {
+	const { w, grain, rgb } = paper;
+	const img = out.createImageData(rw, rh);
 	const d = img.data;
-	const cover = layers.map((l) => l.c.getImageData(0, 0, w, h).data);
+	const cover = layers.map((l) => l.c.getImageData(x0, y0, rw, rh).data);
 	// ink as a transmittance per channel: multiplying by it darkens the paper toward the ink's colour
 	const trans = layers.map((l) => l.ink.map((v) => v / 255));
-	for (let i = 0, n = w * h; i < n; i++) {
-		let r = rgb[i * 3] / 255,
-			g = rgb[i * 3 + 1] / 255,
-			b = rgb[i * 3 + 2] / 255;
-		for (let k = 0; k < layers.length; k++) {
-			const a0 = cover[k][i * 4 + 3] / 255;
-			if (a0 <= 0) continue;
-			const tooth = layers[k].tooth ?? 0.55;
-			const a = Math.min(1, a0 * layers[k].strength * (1 - tooth * (grain[i] - 0.45)));
-			const t = trans[k];
-			r *= 1 - a * (1 - t[0]);
-			g *= 1 - a * (1 - t[1]);
-			b *= 1 - a * (1 - t[2]);
+	for (let y = 0; y < rh; y++)
+		for (let x = 0; x < rw; x++) {
+			const i = (y0 + y) * w + x0 + x,
+				o = y * rw + x;
+			let r = rgb[i * 3] / 255,
+				g = rgb[i * 3 + 1] / 255,
+				b = rgb[i * 3 + 2] / 255;
+			for (let k = 0; k < layers.length; k++) {
+				const a0 = cover[k][o * 4 + 3] / 255;
+				if (a0 <= 0) continue;
+				const tooth = layers[k].tooth ?? 0.55;
+				const a = Math.min(1, a0 * layers[k].strength * (1 - tooth * (grain[i] - 0.45)));
+				const t = trans[k];
+				r *= 1 - a * (1 - t[0]);
+				g *= 1 - a * (1 - t[1]);
+				b *= 1 - a * (1 - t[2]);
+			}
+			d[o * 4] = r * 255;
+			d[o * 4 + 1] = g * 255;
+			d[o * 4 + 2] = b * 255;
+			d[o * 4 + 3] = 255;
 		}
-		d[i * 4] = r * 255;
-		d[i * 4 + 1] = g * 255;
-		d[i * 4 + 2] = b * 255;
-		d[i * 4 + 3] = 255;
-	}
-	out.putImageData(img, 0, 0);
+	out.putImageData(img, x0, y0);
 }
 
 /** Points along an SVG path string (px, after `transform`), for drawing arrows and flourishes with the pen. */
@@ -259,30 +323,100 @@ export function displace(
 	const out = c.createImageData(w, h);
 	const s = src.data,
 		d = out.data;
-	const f = frequency / unit,
-		amp = scale * unit;
+	const { field, gw } = offsets(w, h, unit, frequency, scale, seed);
+	// only tiles with ink near them need the work (ink layers are mostly empty); a pixel moves less than a tile
+	const tw = Math.ceil(w / TILE),
+		th = Math.ceil(h / TILE),
+		inked = new Uint8Array(tw * th);
+	for (let y = 0; y < h; y++)
+		for (let x = 0, row = y * w; x < w; x++)
+			if (s[(row + x) * 4 + 3]) {
+				inked[Math.floor(y / TILE) * tw + Math.floor(x / TILE)] = 1;
+				x = (Math.floor(x / TILE) + 1) * TILE - 1;
+			}
 	// only coverage matters on an ink layer: sample it bilinearly, so anti-aliased edges stay smooth
 	const A = (x: number, y: number) =>
 		x < 0 || y < 0 || x >= w || y >= h ? 0 : s[(y * w + x) * 4 + 3];
-	for (let y = 0; y < h; y++)
-		for (let x = 0; x < w; x++) {
-			// two octaves of noise per axis, centred on zero: offset in [-amp/2, amp/2], as feDisplacementMap
-			const nx =
-				0.67 * noise(x * f, y * f, seed) + 0.33 * noise(x * f * 2, y * f * 2, seed + 1) - 0.5;
-			const ny =
-				0.67 * noise(x * f, y * f, seed + 2) + 0.33 * noise(x * f * 2, y * f * 2, seed + 3) - 0.5;
-			const sx = x + nx * amp,
-				sy = y + ny * amp;
-			const x0 = Math.floor(sx),
-				y0 = Math.floor(sy),
-				tx = sx - x0,
-				ty = sy - y0;
-			const a =
-				(A(x0, y0) * (1 - tx) + A(x0 + 1, y0) * tx) * (1 - ty) +
-				(A(x0, y0 + 1) * (1 - tx) + A(x0 + 1, y0 + 1) * tx) * ty;
-			d[(y * w + x) * 4 + 3] = a;
+	for (let ty = 0; ty < th; ty++)
+		for (let tx = 0; tx < tw; tx++) {
+			let near = 0;
+			for (let j = Math.max(0, ty - 1); j <= Math.min(th - 1, ty + 1); j++)
+				for (let i = Math.max(0, tx - 1); i <= Math.min(tw - 1, tx + 1); i++)
+					near |= inked[j * tw + i];
+			if (!near) continue;
+			for (let y = ty * TILE; y < Math.min(h, (ty + 1) * TILE); y++)
+				for (let x = tx * TILE; x < Math.min(w, (tx + 1) * TILE); x++) {
+					// the offset, interpolated from the coarse field
+					const gx = x / STEP,
+						gy = y / STEP,
+						i = Math.floor(gx),
+						j = Math.floor(gy),
+						fx = gx - i,
+						fy = gy - j,
+						n = (j * gw + i) * 2,
+						m = n + gw * 2;
+					const ox =
+						(field[n] * (1 - fx) + field[n + 2] * fx) * (1 - fy) +
+						(field[m] * (1 - fx) + field[m + 2] * fx) * fy;
+					const oy =
+						(field[n + 1] * (1 - fx) + field[n + 3] * fx) * (1 - fy) +
+						(field[m + 1] * (1 - fx) + field[m + 3] * fx) * fy;
+					const sx = x + ox,
+						sy = y + oy;
+					const x0 = Math.floor(sx),
+						y0 = Math.floor(sy),
+						ax = sx - x0,
+						ay = sy - y0;
+					d[(y * w + x) * 4 + 3] =
+						(A(x0, y0) * (1 - ax) + A(x0 + 1, y0) * ax) * (1 - ay) +
+						(A(x0, y0 + 1) * (1 - ax) + A(x0 + 1, y0 + 1) * ax) * ay;
+				}
 		}
 	c.putImageData(out, 0, 0);
+}
+
+const TILE = 32, // px per tile when skipping empty parts of a layer
+	STEP = 4; // px between samples of the displacement field (it is smooth at that scale)
+const fieldCache = new Map<string, { field: Float32Array; gw: number }>();
+
+/**
+ * The displacement offsets, in px, on a grid every STEP px, the same for every layer drawn at this size: two
+ * octaves of noise per axis, centred on zero, an offset in [-amp/2, amp/2], as feDisplacementMap.
+ */
+function offsets(
+	w: number,
+	h: number,
+	unit: number,
+	frequency: number,
+	scale: number,
+	seed: number
+) {
+	const key = [w, h, unit, frequency, scale, seed].join();
+	const hit = fieldCache.get(key);
+	if (hit) return hit;
+	const f = frequency / unit,
+		amp = scale * unit,
+		gw = Math.ceil(w / STEP) + 2,
+		gh = Math.ceil(h / STEP) + 2,
+		field = new Float32Array(gw * gh * 2);
+	for (let j = 0; j < gh; j++)
+		for (let i = 0; i < gw; i++) {
+			const x = i * STEP,
+				y = j * STEP,
+				n = (j * gw + i) * 2;
+			field[n] =
+				(0.67 * noise(x * f, y * f, seed) + 0.33 * noise(x * f * 2, y * f * 2, seed + 1) - 0.5) *
+				amp;
+			field[n + 1] =
+				(0.67 * noise(x * f, y * f, seed + 2) +
+					0.33 * noise(x * f * 2, y * f * 2, seed + 3) -
+					0.5) *
+				amp;
+		}
+	fieldCache.clear(); // one size at a time
+	const out = { field, gw };
+	fieldCache.set(key, out);
+	return out;
 }
 
 /**
@@ -328,6 +462,11 @@ export function pool(
 		d = img.data;
 	const apothem = (r * Math.sqrt(3)) / 2,
 		u = unit;
+	const table = (period: number, seed: number) =>
+		lattice(Math.ceil(w / (period * u)) + 2, Math.ceil(h / (period * u)) + 2, seed);
+	const n45 = table(45, 3),
+		n11 = table(11, 5),
+		n70 = table(70, 9);
 	for (let by = 0; by < bh; by++)
 		for (let bx = 0; bx < bw; bx++) {
 			const x = x0 + bx,
@@ -337,8 +476,8 @@ export function pool(
 			// distance to a flat-topped hexagon's edge (negative inside), wandering
 			const edge =
 				Math.max(dy - apothem, (dx * Math.sqrt(3)) / 2 + dy / 2 - apothem) +
-				(noise(x / (45 * u), y / (45 * u), 3) - 0.5) * 16 * u +
-				(noise(x / (11 * u), y / (11 * u), 5) - 0.5) * 5 * u;
+				(tnoise(n45, x / (45 * u), y / (45 * u)) - 0.5) * 16 * u +
+				(tnoise(n11, x / (11 * u), y / (11 * u)) - 0.5) * 5 * u;
 			const inside = Math.min(1, Math.max(0, 0.5 - edge / (1.2 * u))),
 				depth = Math.max(0, -edge);
 			let dens =
@@ -346,7 +485,7 @@ export function pool(
 				(0.6 +
 					0.32 * Math.exp(-depth / (5 * u)) +
 					0.14 * Math.exp(-(((depth - 24 * u) / (3 * u)) ** 2)) +
-					(noise(x / (70 * u), y / (70 * u), 9) - 0.5) * 0.16);
+					(tnoise(n70, x / (70 * u), y / (70 * u)) - 0.5) * 0.16);
 			if (edge > 0) {
 				const fibre = Math.min(1, Math.max(0, (grain[y * w + x] - 0.45) / 0.35));
 				dens += 0.55 * Math.exp(-edge / (1.6 * u)) * fibre;

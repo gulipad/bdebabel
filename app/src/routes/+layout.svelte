@@ -1,6 +1,7 @@
 <script lang="ts">
 	import '../app.css';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import favicon from '#lib/assets/favicon.svg';
 	import Paper from '#lib/components/Paper.svelte';
 	import Loading from '#lib/components/Loading.svelte';
@@ -14,7 +15,10 @@
 	<title>La Ciudad de Babel</title>
 </svelte:head>
 
-<Paper />
+<!-- the cover draws its own sheet over the whole screen; the lit paper under it would only cost time -->
+{#if page.route.id !== '/portada'}
+	<Paper />
+{/if}
 
 <div class="city">
 	<header>

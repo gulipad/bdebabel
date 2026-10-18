@@ -47,6 +47,8 @@ export type Mark =
 			spacing?: number;
 			align?: CanvasTextAlign;
 			alpha?: number;
+			/** which word of its ring a letter belongs to */
+			word?: number;
 	  }
 	/** a phrase lettered along a closed line of walls (clockwise, from its first point), repeated to close the loop */
 	| {
@@ -67,7 +69,10 @@ export interface PlanoScene {
 	lettering: Lettered[];
 	/** a spread-out set of those galleries (indices), for a cover that stands still */
 	opening: number[];
-	/** the heart of the clearing: a hexagon (centre, circumradius) inside the lines, and the title set in it */
+	/**
+	 * the heart of the clearing: a hexagon (centre, circumradius) inside the lines, and the title set in it, in its
+	 * upper part (the ways into the city go below it, from about 44 units under the centre)
+	 */
 	centre: { c: Pt; r: number; title: Mark[] };
 }
 
@@ -305,13 +310,13 @@ export function planoScene(o: Partial<PlanoOptions> = {}): PlanoScene {
 
 	// the title, in the face kept for it, in the middle of the clearing
 	const title: Mark[] = [
-		['LA BIBLIOTECA', cy - 4],
-		['DE BABEL', cy + 34]
+		['LA BIBLIOTECA', cy - 28],
+		['DE BABEL', cy + 6]
 	].map(([t, y]) => ({
 		kind: 'text',
 		t: t as string,
 		at: [cx, y as number],
-		size: 27,
+		size: 24,
 		font: TITLE_FONT.font,
 		spacing: TITLE_FONT.spacing + 1
 	}));
@@ -349,12 +354,16 @@ export function ringLetters(
 	const out: Mark[] = [];
 	let d = 0,
 		e = 0,
-		at0 = 0; // the wall the letter is on, and where along the line that wall starts
+		at0 = 0, // the wall the letter is on, and where along the line that wall starts
+		word = 0;
 	chars.forEach((t, i) => {
 		const mid = d + ws[i] / 2;
 		d += ws[i] + gapw;
 		while (e < segs.length - 1 && mid > at0 + segs[e].len) at0 += segs[e++].len;
-		if (t === ' ') return;
+		if (t === ' ') {
+			if (i > 0 && chars[i - 1] !== ' ') word++;
+			return;
+		}
 		const { a, b, len } = segs[e];
 		out.push({
 			kind: 'text',
@@ -363,7 +372,8 @@ export function ringLetters(
 			rot: (Math.atan2(b[1] - a[1], b[0] - a[0]) * 180) / Math.PI,
 			size: m.size,
 			font: m.font,
-			alpha: m.alpha
+			alpha: m.alpha,
+			word
 		});
 	});
 	return out;
