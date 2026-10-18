@@ -226,6 +226,15 @@
 			cambian de sitio. Por eso cada dirección empieza por el nombre de su universo, y los universos
 			no se tocan.
 		</p>
+
+		<p>
+			Y esa lista cabe en muy poco. babel-1 pesa 78 MB: 77 son los pesos del Bibliotecario, algo más
+			de uno las tablas de su vocabulario, y el motor que escribe con ellos son 37 KB de código. La
+			ciudad que lo enseña, sin la música, otros 250 KB. Con eso se abre cualquier página de una
+			biblioteca que no cabe en el universo. Sólo la parte de Basile ocuparía 10<sup>4.683</sup> bytes,
+			59 universos de discos uno dentro de otro, y aquí cabe en menos de lo que pesa un minuto de vídeo
+			en 4K (nada mal).
+		</p>
 	</section>
 
 	<section use:melt={{ onView: true }}>
