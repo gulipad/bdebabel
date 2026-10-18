@@ -49,6 +49,19 @@
 		);
 	});
 
+	// on a desktop, the model downloads while the cover inks itself in: once the page itself has loaded, so it
+	// doesn't hold back the cover's fonts and first strokes
+	$effect(() => {
+		let t = 0;
+		const go = () => (t = window.setTimeout(() => door.early(), 600));
+		if (document.readyState === 'complete') go();
+		else addEventListener('load', go, { once: true });
+		return () => {
+			clearTimeout(t);
+			removeEventListener('load', go);
+		};
+	});
+
 	/** back to the cover, always */
 	const back = () => goto(resolve('/'));
 

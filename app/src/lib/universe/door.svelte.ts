@@ -3,7 +3,7 @@
  * once they may go on. On a desktop the model just comes (a line says how much has arrived) and they go on at
  * once. On a phone or a tablet a popup (Door.svelte) first says what it weighs: they go on once it is in and
  * checked, or `need()` rejects if the reader says not now. When the model came on an earlier visit, nothing
- * is said at all.
+ * is said at all. On a desktop, `early()` starts the download while the cover is still inking itself in.
  */
 import { handheld } from '#lib/ui/device.ts';
 import { arrived, universe, type Progress } from './client.ts';
@@ -31,6 +31,11 @@ class Door {
 		this.error = '';
 		this.popup = 'ask';
 		return new Promise((resolve, reject) => (this.#waiting = { resolve, reject }));
+	}
+
+	/** on a desktop, the model starts coming at once, wherever the reader came in (a phone waits to be asked) */
+	early() {
+		if (!handheld()) this.#start();
 	}
 
 	/** the popup's Descargar */
