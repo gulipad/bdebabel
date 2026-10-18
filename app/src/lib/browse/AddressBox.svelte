@@ -20,7 +20,9 @@
 	import { enterSubmits } from '#lib/ui/keys.ts';
 
 	let text = $state(''),
-		bad = $state(false);
+		bad = $state(false),
+		/** the sentence a pasted link asked to mark (?frase=), kept once the link is cut down to the room */
+		phrase = $state<string | undefined>();
 	/** the wall, shelf, book and page: filled in from what was pasted, and free to change */
 	let wall = $state<number | null>(null),
 		shelf = $state<number | null>(null),
@@ -36,13 +38,19 @@
 
 	/** the universe is always the same, so it is written for you: one pasted with it loses it */
 	const UNIVERSE = 'babel-1';
-	function read() {
+	function read(e: Event) {
 		bad = false;
-		if (text.trimStart().startsWith(`${UNIVERSE}:`))
+		const p = placeParts(text);
+		// a pasted link or address is cut down to the room's name, and the rest goes into the four below
+		// (only when pasted: an address typed by hand keeps its colons as they come)
+		const pasted = e instanceof InputEvent && /^insertFrom(Paste|Drop)/.test(e.inputType);
+		if (pasted && p && /[/:?]/.test(text)) {
+			text = p.hexagon;
+			phrase = p.phrase;
+		} else if (text.trimStart().startsWith(`${UNIVERSE}:`))
 			text = text.trimStart().slice(UNIVERSE.length + 1);
 		// what was pasted fills in the four, even when it is out of range (so that is said, below)
 		// (a bare room's name leaves the four as they are)
-		const p = placeParts(text);
 		if (!p || p.wall === undefined) return;
 		wall = p.wall ?? null;
 		shelf = p.shelf ?? null;
@@ -88,7 +96,7 @@
 			at.wall && at.shelf && at.volume && at.page
 				? withPhrase(
 						addressIn(universe, hexagon, at.wall, at.shelf, at.volume, at.page),
-						place.phrase
+						place.phrase ?? phrase
 					)
 				: roomLink(hexagon, at);
 		// eslint-disable-next-line svelte/no-navigation-without-resolve -- both links resolve their routes

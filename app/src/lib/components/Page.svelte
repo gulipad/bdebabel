@@ -1,5 +1,6 @@
 <script lang="ts">
 	/** One leaf of the Library: its catalogue slip (where it is, how far) and its text, exactly as stored. */
+	import { resolve } from '$app/paths';
 	import { locate, steps } from '#lib/address.ts';
 	import Trail from '#lib/browse/Trail.svelte';
 	import InkLink from '#lib/ui/InkLink.svelte';
@@ -10,13 +11,14 @@
 
 	const where = $derived(locate(page.address));
 
-	/** the whole address, hexagon and all, onto the clipboard (the old way where the clipboard is refused) */
+	/** the page's link, to give someone (the address is in it), onto the clipboard (the old way where refused) */
 	let copied = $state(false);
 	async function copy() {
+		const link = location.origin + resolve('/[address]', { address: page.address });
 		try {
-			await navigator.clipboard.writeText(page.address);
+			await navigator.clipboard.writeText(link);
 		} catch {
-			const t = Object.assign(document.createElement('textarea'), { value: page.address });
+			const t = Object.assign(document.createElement('textarea'), { value: link });
 			document.body.append(t);
 			t.select();
 			document.execCommand('copy');
@@ -53,7 +55,7 @@
 		<p class="far"><span>{page.ring}.</span> {steps(page.bits)} pasos del centro.</p>
 		<div class="where">
 			{#if where}<Trail {where} />{/if}
-			<InkLink small onclick={copy}>{copied ? 'Copiada' : 'Copiar la dirección'}</InkLink>
+			<InkLink small onclick={copy}>{copied ? 'Copiado' : 'Copiar el enlace'}</InkLink>
 		</div>
 	</div>
 
