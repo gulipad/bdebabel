@@ -11,7 +11,8 @@
 	import Sheet from '#lib/ui/Sheet.svelte';
 	import { melt, meltAway } from '#lib/ui/melt.ts';
 	import { movedWithin } from '#lib/ui/visit.ts';
-	import Librarian from '#lib/universe/Librarian.svelte';
+	import Door from '#lib/universe/Door.svelte';
+	import { door } from '#lib/universe/door.svelte.ts';
 	import type { LayoutProps } from './$types';
 
 	let { children }: LayoutProps = $props();
@@ -25,9 +26,18 @@
 	] as const;
 	/** the cover recorded for video (#video) has no switch in its corner */
 	const recording = $derived(page.url.hash.includes('video'));
-	/** the places that need the model: they open only once it has come (Librarian) */
+	/** the places that need the model: they open once the door lets them (at once, on a desktop) */
 	const NEEDS = ['/buscar', '/sala/[hexagon]', '/[address]'];
 	const needs = $derived(NEEDS.includes(page.route.id ?? ''));
+	let let_in = $state('');
+	$effect(() => {
+		const path = page.url.pathname;
+		if (!needs) return;
+		door.need().then(
+			() => (let_in = path),
+			() => goto(resolve('/'))
+		);
+	});
 
 	/** on a phone or a tablet, a word first that the city is made for a desktop (once) */
 	const WARNED = 'babel:movil';
@@ -122,11 +132,10 @@
 					{/each}
 				</nav>
 			</header>
+			<Door />
 			{#key page.url.pathname}
 				<main bind:this={main} use:melt={{ ms: 900 }}>
-					{#if needs}
-						<Librarian>{@render children()}</Librarian>
-					{:else}
+					{#if !needs || let_in === page.url.pathname}
 						{@render children()}
 					{/if}
 				</main>
