@@ -1068,7 +1068,7 @@
 </script>
 
 <div class="stage" bind:this={stage}>
-	<canvas bind:this={canvas} aria-label="Plano de las galerías de la Ciudad de Babel"></canvas>
+	<canvas bind:this={canvas} aria-label="Plano de las galerías de la Biblioteca de Babel"></canvas>
 	<!-- the ways melt in like the ink: a blotchy, grainy noise that passes a threshold rising with `waysIn` -->
 	<svg class="defs" aria-hidden="true">
 		<filter id="ways-melt" x="-10%" y="-20%" width="120%" height="140%">

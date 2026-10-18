@@ -78,7 +78,7 @@
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
-	<title>La Ciudad de Babel</title>
+	<title>La Biblioteca de Babel</title>
 </svelte:head>
 
 <Inks />
