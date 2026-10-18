@@ -8,13 +8,33 @@ let made = 0;
 
 const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+/**
+ * The part of an element the filter works on: what is on screen (from the element's top if it is still below),
+ * at most ~4,000 device pixels tall. Safari draws nothing at all through a filter taller than that, and a long
+ * page on a phone (Teoría is ~8,000 px, ×3 on an iPhone) is far taller. What lies outside it is off screen and
+ * hidden only while the melt lasts. In the element's own pixels, which is what userSpaceOnUse means for HTML.
+ */
+function region(node: HTMLElement | SVGElement) {
+	const r = node.getBoundingClientRect(),
+		pad = 24;
+	const tall = Math.floor(4000 / Math.max(1, devicePixelRatio || 1));
+	const top = Math.min(Math.max(0, -r.top - pad), Math.max(0, r.height - tall));
+	return {
+		x: -pad,
+		y: top - pad,
+		width: r.width + 2 * pad,
+		height: Math.min(r.height - top + 2 * pad, tall)
+	};
+}
+
 /** A filter of its own for one element; `set(p)` shows that much of it (0..1). */
-function filter(grain: number) {
+function filter(node: HTMLElement | SVGElement, grain: number) {
 	const id = `melt-${++made}`;
+	const { x, y, width, height } = region(node);
 	const svg = document.createElementNS(NS, 'svg');
 	svg.setAttribute('aria-hidden', 'true');
 	svg.style.cssText = 'position:absolute;width:0;height:0;pointer-events:none';
-	svg.innerHTML = `<filter id="${id}" x="-4%" y="-4%" width="108%" height="108%">
+	svg.innerHTML = `<filter id="${id}" filterUnits="userSpaceOnUse" x="${x}" y="${y}" width="${width}" height="${height}">
 		<feTurbulence type="fractalNoise" baseFrequency="${grain}" numOctaves="4" seed="${made % 89}" />
 		<feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  1 0 0 0 0" />
 		<feComponentTransfer result="m"><feFuncA type="linear" slope="8" intercept="-6" /></feComponentTransfer>
@@ -22,8 +42,8 @@ function filter(grain: number) {
 	</filter>`;
 	document.body.append(svg);
 	const a = svg.querySelector('feFuncA')!;
+	node.style.filter = `url(#${id})`;
 	return {
-		id,
 		set: (p: number) => a.setAttribute('intercept', String(-5.8 + p * 4.6)),
 		remove: () => svg.remove()
 	};
@@ -57,9 +77,8 @@ export interface MeltOptions {
 export function melt(node: HTMLElement | SVGElement, o: MeltOptions = {}) {
 	const { ms = 1100, delay = 0, onView = false, grain = 0.03 } = o;
 	if (still()) return {};
-	const f = filter(grain);
+	const f = filter(node, grain);
 	f.set(0);
-	node.style.filter = `url(#${f.id})`;
 	let gone = false,
 		seen: IntersectionObserver | null = null;
 	const start = () =>
@@ -97,9 +116,8 @@ export function melt(node: HTMLElement | SVGElement, o: MeltOptions = {}) {
 /** Melts an element away; resolves once it is gone (it stays hidden). */
 export async function meltAway(node: HTMLElement, ms = 450, grain = 0.03) {
 	if (still()) return;
-	const f = filter(grain);
+	const f = filter(node, grain);
 	f.set(1);
-	node.style.filter = `url(#${f.id})`;
 	await run(ms, (p) => f.set(1 - p));
 	node.style.visibility = 'hidden';
 	node.style.filter = '';
@@ -110,9 +128,8 @@ export async function meltAway(node: HTMLElement, ms = 450, grain = 0.03) {
 export async function meltIn(node: HTMLElement, ms = 600, grain = 0.03) {
 	node.style.visibility = '';
 	if (still()) return;
-	const f = filter(grain);
+	const f = filter(node, grain);
 	f.set(0);
-	node.style.filter = `url(#${f.id})`;
 	await run(ms, f.set);
 	node.style.filter = '';
 	f.remove();

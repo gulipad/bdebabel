@@ -22,7 +22,7 @@
 
 {#snippet credit()}
 	<p class="credit">
-		Hecho con ❤️ por <a
+		Construido con ❤️ por <a
 			class="out"
 			href="https://gulipad.com"
 			target="_blank"
@@ -36,7 +36,6 @@
 
 <article class="theory">
 	<h1>La Biblioteca Infinita</h1>
-	{@render credit()}
 
 	<p class="opening">
 		En 1938, Jorge Luis Borges entra a trabajar como auxiliar en la Biblioteca Municipal Miguel

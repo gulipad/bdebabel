@@ -51,10 +51,24 @@ export class Universe {
 	center = () => this.ready.then(() => this.ask({ type: 'center' }));
 }
 
+const BASE = import.meta.env.VITE_UNIVERSE_BASE ?? '/universe/babel-1/';
+/** where the worker keeps the universe's files (worker.ts) */
+const CACHE = 'ciudad-de-babel-universes';
 let shared: Universe | null = null;
 
-/** One worker for the whole app, opened on first use. */
+/** One worker for the whole app, opened on first use (which starts the model's download). */
 export function universe(): Universe {
-	shared ??= new Universe(import.meta.env.VITE_UNIVERSE_BASE ?? '/universe/babel-1/');
+	shared ??= new Universe(BASE);
 	return shared;
+}
+
+/** Whether the worker is open already, or the model came on an earlier visit and waits in the cache. */
+export async function arrived(): Promise<boolean> {
+	if (shared) return true;
+	try {
+		const model = new URL('model/model.bin', new URL(BASE, location.href)).href;
+		return !!(await (await caches.open(CACHE)).match(model));
+	} catch {
+		return false;
+	}
 }
