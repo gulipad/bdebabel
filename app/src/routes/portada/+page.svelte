@@ -32,6 +32,7 @@
 		stroke,
 		type Pt
 	} from '#lib/pen/pen.ts';
+	import { livePool } from '#lib/pen/pool-gl.ts';
 
 	let canvas: HTMLCanvasElement;
 
@@ -51,9 +52,13 @@
 		EAT = 2.5, // how fast it wears, in full wear per second at the pointer
 		REDRAW = 0.35, // how fast it is drawn back, per second (about three seconds from bare paper)
 		CELL = 8, // sheet px per cell of the wear field
-		WORD_REACH = 12, // board units: how near the pointer a word of the clearing's lines must be to go
+		WORD_REACH = 34, // board units: how near the pointer a word of the clearing's lines may be to go (the nearest)
 		NEAR_REACH = 45, // board units: the pointer's reach in the heart of the clearing
-		HEART_CAP = 0.45; // the most the pointer takes from the heart
+		NEAR_EAT = 6, // how fast it wears there: almost at once
+		HEART_CAP = 0.5, // the most the pointer takes from the heart
+		TITLE_GUARD = 0.7, // how much of that the title and the ink right around it are spared
+		CREEP_MS = 30000, // ms for the pool's edge to creep round and back to where it was
+		DRIFT = 0.5; // how far its edge's noise flows (lattice cells, the radius of its circle)
 
 	/** the ways into the city, under the title */
 	const WAYS = ['Comprender', 'Hojear', 'Buscar'];
@@ -79,7 +84,7 @@
 		HEART_MS = 3500, // ms for the heart of the clearing to melt in, from the middle out
 		WAYS_AFTER = 2000, // ms after the heart starts that the ways melt in, as the title finishes
 		WAYS_MS = 1500, // ms for the ways to melt in
-		BANDS_AFTER = 2500; // ms after the heart has melted in before the first band
+		BANDS_AFTER = 2000; // ms after the heart starts that the bands may begin, as the title has melted in
 
 	const sheet = (w: number, h: number) => {
 		const c = document.createElement('canvas');
@@ -309,7 +314,7 @@
 			melting = 0;
 			clearingAt = Math.min(clearingAt, t - LEAD_MS);
 			heartAt = clearingAt + HEART_AFTER;
-			bandsAt = heartAt + HEART_MS + BANDS_AFTER;
+			bandsAt = heartAt + BANDS_AFTER;
 		};
 		if (still) [clearingAt, heartAt, bandsAt] = [-Infinity, -Infinity, -Infinity];
 		else if (!entered && deepest > 0) {
@@ -421,6 +426,8 @@
 			letters?: Float32Array;
 			place?: (x: number, y: number) => number;
 			cap: number;
+			/** per mask pixel, the part of `cap` it is spared (0..1) */
+			guard?: Float32Array;
 			on: boolean;
 		};
 		/** The strand's mask at `e` ms after it started, with `going` (1..0) of it left as it melts away. */
@@ -451,7 +458,9 @@
 				if (place)
 					v *=
 						1 -
-						touch!.cap * place(st.x0 + (p % st.sw) * 2 + 1, st.y0 + Math.floor(p / st.sw) * 2 + 1);
+						touch!.cap *
+							(1 - (touch!.guard?.[p] ?? 0)) *
+							place(st.x0 + (p % st.sw) * 2 + 1, st.y0 + Math.floor(p / st.sw) * 2 + 1);
 				const t = Math.min(1, Math.max(0, (v * 1.25 - f.ord[p] + 0.08) / 0.16));
 				a[p * 4 + 3] = t * t * (3 - 2 * t) * 255;
 			}
@@ -491,35 +500,77 @@
 		compose(innerInk, white, [{ c: inner.c, ink: SEPIA, strength: 1.15 }], [rectOf(clearing)]);
 		const titled = inkLayer(w, h);
 		draw(titled.c, scene.centre.title);
-		const heartInk = sheet(w, h);
+		const heartInk = sheet(w, h),
+			hrect = rectOf(heart);
+		// the noise the pool's edge wanders by flows round a circle, so its edge creeps and comes back
+		const drift = (now: number): [number, number] => {
+			const a = ((still ? 0 : now) / CREEP_MS) * Math.PI * 2;
+			return [DRIFT * (1 + Math.cos(a)), DRIFT * (1 + Math.sin(a))];
+		};
+		// the heart's ink: the title alone; or the pool, drawn live on the GPU so it can creep (or, without it,
+		// once, still)
+		const live = plain
+			? null
+			: livePool(paper, {
+					cx: hx,
+					cy: hy,
+					r: hr,
+					unit: k,
+					reserve: titled.c,
+					rect: hrect,
+					ink: IRON_GALL
+				});
 		if (plain) {
 			displace(titled.c, w, h, k);
 			compose(
 				heartInk,
 				white,
 				[{ c: titled.c, ink: IRON_GALL, strength: 1.2, tooth: 0.4 }],
-				[rectOf(heart)]
+				[hrect]
 			);
-		} else {
+		} else if (!live) {
 			const pond = inkLayer(w, h);
-			pool(pond.c, paper, { cx: hx, cy: hy, r: hr, unit: k, reserve: titled.c });
-			compose(
-				heartInk,
-				white,
-				[{ c: pond.c, ink: IRON_GALL, strength: 1, tooth: 0.5 }],
-				[rectOf(heart)]
-			);
+			pool(pond.c, paper, { cx: hx, cy: hy, r: hr, unit: k, reserve: titled.c, drift: drift(0) });
+			compose(heartInk, white, [{ c: pond.c, ink: IRON_GALL, strength: 1, tooth: 0.5 }], [hrect]);
 		}
+		// the title, and the ink right around it, are spared most of what the pointer takes from the heart
+		const titleGuard = (() => {
+			const g = sheet(heart.sw, heart.sh);
+			g.filter = `blur(${1.5 * k}px)`;
+			g.drawImage(
+				titled.canvas,
+				heart.x0,
+				heart.y0,
+				heart.sw * 2,
+				heart.sh * 2,
+				0,
+				0,
+				heart.sw,
+				heart.sh
+			);
+			const a = g.getImageData(0, 0, heart.sw, heart.sh).data,
+				out = new Float32Array(heart.sw * heart.sh);
+			for (let p = 0; p < out.length; p++)
+				out[p] = Math.min(1, (a[p * 4 + 3] / 255) * 2) * TITLE_GUARD;
+			return out;
+		})();
 
 		// a strand's ink, through its mask, multiplied onto the sheet on top of everything (nothing wears it away)
-		const inkThrough = (st: Strand, e: number, ink: CanvasRenderingContext2D, touch?: Touch) => {
+		const inkThrough = (
+			st: Strand,
+			e: number,
+			ink: { canvas: CanvasImageSource },
+			touch?: Touch,
+			/** where `ink` sits on the sheet, when it is smaller than the sheet */
+			[ix, iy] = [0, 0]
+		) => {
 			if (e <= 0 || !st.drops.length) return;
 			const [W, H] = [st.sw * 2, st.sh * 2];
 			const spot = (st.spot ??= sheet(W, H));
 			spot.globalCompositeOperation = 'copy';
 			spot.drawImage(maskOf(st, e, 1, touch).canvas, 0, 0, W, H);
 			spot.globalCompositeOperation = 'source-in';
-			spot.drawImage(ink.canvas, st.x0, st.y0, W, H, 0, 0, W, H);
+			spot.drawImage(ink.canvas, st.x0 - ix, st.y0 - iy, W, H, 0, 0, W, H);
 			out.globalCompositeOperation = 'multiply';
 			out.drawImage(spot.canvas, st.x0, st.y0);
 			out.globalCompositeOperation = 'source-over';
@@ -541,6 +592,7 @@
 		const nearWear = new Float32Array(near.cw * near.ch);
 		const heartTouch: Touch = {
 			cap: HEART_CAP,
+			guard: titleGuard,
 			on: false,
 			place: (x, y) => {
 				const gx = (x - near.x0) / CELL,
@@ -562,10 +614,16 @@
 				py = pointer.y * dpr,
 				reach = WORD_REACH * k;
 			const hot = new Uint8Array(wordsWorn.length);
-			if (pointer.in && !pointer.onWays)
-				clearing.drops.forEach((d) => {
-					if (Math.hypot(d.x - px, d.y - py) < reach) hot[d.word ?? 0] = 1;
-				});
+			// only the word nearest the pointer goes, if it is within reach
+			if (pointer.in && !pointer.onWays) {
+				let best = reach,
+					word = -1;
+				for (const d of clearing.drops) {
+					const u = Math.hypot(d.x - px, d.y - py);
+					if (u < best) [best, word] = [u, d.word ?? 0];
+				}
+				if (word >= 0) hot[word] = 1;
+			}
 			let on = false;
 			for (let wd = 0; wd < wordsWorn.length; wd++) {
 				const v = hot[wd] ? wordsWorn[wd] + dt * EAT : wordsWorn[wd] - dt * REDRAW;
@@ -587,7 +645,7 @@
 					let v = nearWear[n] - dt * REDRAW;
 					if (pressing) {
 						const u = Math.hypot(i - gx, j - gy) / rc;
-						if (u < 1) v += dt * EAT * (1 - u * u) ** 2;
+						if (u < 1) v += dt * NEAR_EAT * (1 - u * u) ** 2;
 					}
 					nearWear[n] = Math.min(1, Math.max(0, v));
 					hon ||= nearWear[n] > 0;
@@ -645,7 +703,10 @@
 			wearAway(now);
 
 			// the clearing's lines, streaming in once the plan is drawn, untouched by the wear: multiplied on top
-			inkThrough(heart, now - heartAt, heartInk, heartTouch);
+			if (live) {
+				live.draw(drift(now));
+				inkThrough(heart, now - heartAt, live, heartTouch, [hrect.x, hrect.y]);
+			} else inkThrough(heart, now - heartAt, heartInk, heartTouch);
 			inkThrough(clearing, now - clearingAt, innerInk, lineTouch);
 			// the ways melt in as the title finishes
 			const wi = Math.min(1, Math.max(0, (now - heartAt - WAYS_AFTER) / WAYS_MS));

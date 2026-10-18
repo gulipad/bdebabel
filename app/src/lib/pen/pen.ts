@@ -425,7 +425,9 @@ function offsets(
  * dried (the coffee-ring effect), with a faint tide line inside where it paused; its body is a little uneven;
  * just past the edge it has wicked into the raised fibres; and the paper's tooth (in `compose`) granulates it.
  * Where `reserve` has coverage the paper was kept from the ink (the title, left unstained): the ink stops
- * softly at those edges and pools a little darker against them.
+ * softly at those edges and pools a little darker against them. `drift` (lattice cells, 0..1 each) moves the
+ * noise its edge wanders by (and, less, the unevenness of its body), for a few versions of the same pool that
+ * differ a little.
  */
 export function pool(
 	c: CanvasRenderingContext2D,
@@ -435,8 +437,16 @@ export function pool(
 		cy,
 		r,
 		unit,
-		reserve
-	}: { cx: number; cy: number; r: number; unit: number; reserve?: CanvasRenderingContext2D }
+		reserve,
+		drift = [0, 0]
+	}: {
+		cx: number;
+		cy: number;
+		r: number;
+		unit: number;
+		reserve?: CanvasRenderingContext2D;
+		drift?: [number, number];
+	}
 ) {
 	const { w, h, grain } = paper;
 	const pad = 14 * unit,
@@ -476,8 +486,8 @@ export function pool(
 			// distance to a flat-topped hexagon's edge (negative inside), wandering
 			const edge =
 				Math.max(dy - apothem, (dx * Math.sqrt(3)) / 2 + dy / 2 - apothem) +
-				(tnoise(n45, x / (45 * u), y / (45 * u)) - 0.5) * 16 * u +
-				(tnoise(n11, x / (11 * u), y / (11 * u)) - 0.5) * 5 * u;
+				(tnoise(n45, x / (45 * u) + drift[0], y / (45 * u) + drift[1]) - 0.5) * 16 * u +
+				(tnoise(n11, x / (11 * u) + drift[1] * 0.6, y / (11 * u) + drift[0] * 0.6) - 0.5) * 5 * u;
 			const inside = Math.min(1, Math.max(0, 0.5 - edge / (1.2 * u))),
 				depth = Math.max(0, -edge);
 			let dens =
@@ -485,7 +495,7 @@ export function pool(
 				(0.6 +
 					0.32 * Math.exp(-depth / (5 * u)) +
 					0.14 * Math.exp(-(((depth - 24 * u) / (3 * u)) ** 2)) +
-					(tnoise(n70, x / (70 * u), y / (70 * u)) - 0.5) * 0.16);
+					(tnoise(n70, x / (70 * u) + drift[1] * 0.5, y / (70 * u) + drift[0] * 0.5) - 0.5) * 0.16);
 			if (edge > 0) {
 				const fibre = Math.min(1, Math.max(0, (grain[y * w + x] - 0.45) / 0.35));
 				dens += 0.55 * Math.exp(-edge / (1.6 * u)) * fibre;

@@ -321,7 +321,7 @@ export function planoScene(o: Partial<PlanoOptions> = {}): PlanoScene {
 		spacing: TITLE_FONT.spacing + 1
 	}));
 
-	return { plan, notes, lettering, opening, centre: { c: [cx, cy], r: 165, title } };
+	return { plan, notes, lettering, opening, centre: { c: [cx, cy], r: 185, title } };
 }
 
 /**

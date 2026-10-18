@@ -3,8 +3,11 @@
 const VERT = `#version 300 es
 in vec2 a; void main(){ gl_Position = vec4(a, 0.0, 1.0); }`;
 
-export function context(canvas: HTMLCanvasElement): WebGL2RenderingContext | null {
-	return canvas.getContext('webgl2', { antialias: false, premultipliedAlpha: false });
+export function context(
+	canvas: HTMLCanvasElement,
+	more: WebGLContextAttributes = {}
+): WebGL2RenderingContext | null {
+	return canvas.getContext('webgl2', { antialias: false, premultipliedAlpha: false, ...more });
 }
 
 export function program(gl: WebGL2RenderingContext, fragment: string): WebGLProgram {
