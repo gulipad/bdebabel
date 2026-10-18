@@ -10,8 +10,6 @@ const gitignorePath = path.resolve(import.meta.dirname, '.gitignore');
 
 export default defineConfig(
 	includeIgnoreFile(gitignorePath),
-	// vendored upstream code, kept byte-identical (see src/lib/watercolor/README.md)
-	{ ignores: ['src/lib/watercolor/**'] },
 	js.configs.recommended,
 	ts.configs.recommended,
 	svelte.configs.recommended,

@@ -1,4 +1,4 @@
-/** The interface's handle on the engine worker: typed requests, and loading progress for the opening ink. */
+/** The interface's handle on the engine worker: typed requests, and the model's download progress for the door. */
 import type { Request, ResultOf, Stage, UniverseInfo, WorkerMessage } from './protocol';
 
 export type Progress = { stage: Stage; loaded: number; total: number };

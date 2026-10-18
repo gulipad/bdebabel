@@ -18,8 +18,8 @@ const TYPES: Record<string, string> = {
 
 /**
  * Serves lab/universes/<id>/… at /universe/<id>/… in dev and preview, byte for byte: the app loads the frozen
- * engine and model from there and checks every file against the manifest. In production the same tree is
- * uploaded to a CDN and VITE_UNIVERSE_BASE points at it.
+ * engine and model from there and checks every file against the manifest. In production the build puts the
+ * same tree next to the city (vercel.json), and the weights come from Hugging Face (VITE_MODEL_URL).
  */
 function universes(): Plugin {
 	const handler: Connect.NextHandleFunction = (req, res, next) => {

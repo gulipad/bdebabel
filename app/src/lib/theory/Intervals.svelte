@@ -4,7 +4,7 @@
 	 * slice the address falls in is the word, and it is cut again by the probabilities of the next one; and so
 	 * on. Each choice costs −log₂ p bits. Probabilities here are made up to show the idea, not the model's.
 	 */
-	import { seen } from '#lib/ui/seen.ts';
+	import { inView } from '#lib/ui/seen.ts';
 	import InkLink from '#lib/ui/InkLink.svelte';
 	import Log from './Log.svelte';
 
@@ -124,7 +124,8 @@
 	});
 </script>
 
-<figure use:seen={(v) => (on = v)}>
+<!-- it runs only while it is on screen -->
+<figure use:inView={(v) => (on = v)}>
 	<p class="sentence" aria-live="polite">
 		{#if sentence}«{sentence}»{:else}&nbsp;{/if}
 		<span class="bits"

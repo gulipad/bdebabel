@@ -3,7 +3,7 @@
 	 * Basile's Library: an address and a page are the same thing, disguised. Every so often another address
 	 * comes up, and its page with it; both arrows of the function are always there.
 	 */
-	import { seen } from '#lib/ui/seen.ts';
+	import { inView } from '#lib/ui/seen.ts';
 
 	let on = $state(false),
 		tick = $state(0);
@@ -28,7 +28,8 @@
 	});
 </script>
 
-<figure use:seen={(v) => (on = v)}>
+<!-- it runs only while it is on screen -->
+<figure use:inView={(v) => (on = v)}>
 	<div class="pair">
 		<div class="box">
 			<p class="label">La dirección</p>

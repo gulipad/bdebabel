@@ -1,8 +1,7 @@
 /**
  * The cover: the plan of the galleries around an empty clearing, with a few labels and the librarian's notes.
  * Described once as marks (lines, circles, pen strokes, text) in two layers: the plan, drawn in sepia, and the
- * notes, in the librarian's darker ink. The marks are drawn onto a stencil at the sheet's resolution, and the
- * watercolour engine lays real ink into its paper through that stencil (src/lib/ink/stencil.ts).
+ * notes, in the librarian's darker ink. Cover.svelte draws them with the pen (src/lib/pen) onto the paper.
  */
 
 /** The design is laid out on a 1200 × 780 board, centred on the sheet and scaled to cover it. */
@@ -106,7 +105,7 @@ function seeded(seed: number) {
 }
 
 /**
- * What the galleries' bands say: a fixed pool of excerpts from pages of babel-1 (src/lib/map/sample-text.ts),
+ * What the galleries' bands say: a fixed pool of excerpts from pages of babel-1,
  * chosen once by hand; a band takes one at random each time it appears.
  */
 export const EXCERPTS = [
@@ -138,7 +137,7 @@ export const EXCERPTS = [
 	'en su mayor parte'
 ];
 
-/** From a page of babel-1 (src/lib/map/sample-text.ts): one line per loop, the outermost first. */
+/** From a page of babel-1: one line per loop, the outermost first. */
 const CLEARING_TEXT = [
 	'Los macrocéfalos están de acuerdo en que la vida es una serie de movimientos y movimientos que se han transmitido recíprocamente, de suerte que sus estados de ánimo, cuando son divergentes, en su mayor parte, son necesariamente independientes.',
 	'Tal es la regla general, y según ellos, para que la mente se sienta capaz de explicar en sus sentimientos, hay que fingir, o, lo que es lo mismo, tomar en cuenta la magnitud, longitud y magnitud de la causa de que sea un objeto.'

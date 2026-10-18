@@ -1,20 +1,48 @@
 <script lang="ts">
-	/** On a phone or a tablet, before anything: the city is made for a desktop; going in anyway is remembered. */
+	/**
+	 * On a phone or a tablet, before anything: a word that the city is made for a desktop. Going in anyway is
+	 * remembered on the device; until then, nothing else is shown.
+	 */
+	import type { Snippet } from 'svelte';
+	import { handheld } from './device.ts';
 	import InkLink from './InkLink.svelte';
 	import Sheet from './Sheet.svelte';
 
-	let { oncontinue }: { oncontinue: () => void } = $props();
+	let { children }: { children: Snippet } = $props();
+
+	const WARNED = 'babel:movil';
+	function warnedBefore() {
+		try {
+			return localStorage.getItem(WARNED) === '1';
+		} catch {
+			return false;
+		}
+	}
+	// (the cover recorded for video, #video, goes straight in)
+	let warned = $state(!handheld() || location.hash.includes('video') || warnedBefore());
+	function goIn() {
+		warned = true;
+		try {
+			localStorage.setItem(WARNED, '1');
+		} catch {
+			// asked again next time, then
+		}
+	}
 </script>
 
-<Sheet />
-<section class="notice">
-	<h1>La Biblioteca de Babel</h1>
-	<p>
-		Esta biblioteca está optimizada para ordenador. Utiliza procesamiento gráfico que puede ser
-		lento en dispositivos móviles.
-	</p>
-	<InkLink onclick={oncontinue}>Entrar igualmente</InkLink>
-</section>
+{#if warned}
+	{@render children()}
+{:else}
+	<Sheet />
+	<section class="notice">
+		<h1>La Biblioteca de Babel</h1>
+		<p>
+			Esta biblioteca está optimizada para ordenador. Utiliza procesamiento gráfico que puede ser
+			lento en dispositivos móviles.
+		</p>
+		<InkLink onclick={goIn}>Entrar igualmente</InkLink>
+	</section>
+{/if}
 
 <style>
 	.notice {

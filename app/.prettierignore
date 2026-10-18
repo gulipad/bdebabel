@@ -7,6 +7,3 @@ bun.lockb
 
 # Miscellaneous
 /static/
-
-# Vendored upstream code (kept byte-identical to watercolor-playground)
-/src/lib/watercolor/

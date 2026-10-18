@@ -1,5 +1,5 @@
 // Downloads the most popular Spanish-language public-domain books from Project Gutenberg
-// into corpus/raw/. Usage: npm run corpus [-- <maxBooks>]
+// into corpus/raw/, for lab/corpus.py. Usage: node --experimental-strip-types lab/fetch-corpus.ts [maxBooks]
 import { mkdir, writeFile, readdir } from "node:fs/promises";
 
 const MAX_BOOKS = Number(process.argv[2] ?? 30);

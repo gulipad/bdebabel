@@ -2,7 +2,7 @@
 The sound of the cover's reveal, synthesised: a deep hum that swells as the plan melts in, a rubbed, slightly
 wrong ring as the clearing's words begin, a bloom when the title arrives, and a long settling tail.
 
-Timed to the cover (seconds from load, the order /portada plays in):
+Timed to the cover (seconds from load, the order the cover at / plays in):
     0.8   the paper is there; the plan starts to melt in
     3.6   the clearing's words start to stream
     4.5   the title starts to melt in

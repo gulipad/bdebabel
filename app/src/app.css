@@ -16,8 +16,6 @@
 	--display: 'IM Fell English', 'Iowan Old Style', Georgia, serif;
 	--display-sc: 'IM Fell English SC', 'IM Fell English', Georgia, serif;
 	--body: 'EB Garamond', Garamond, Georgia, serif;
-	--hand: 'Homemade Apple', 'Segoe Script', cursive;
-	--signature: 'Mrs Saint Delafield', cursive;
 	--mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
 
 	padding-top: env(safe-area-inset-top, 0px);

@@ -18,3 +18,12 @@ export function seen(node: Element, on: (v: boolean) => void) {
 	io.observe(node);
 	return { destroy: () => io.disconnect() };
 }
+
+/** An action for what loops: calls `on(true)` whenever the element comes into view and `on(false)` when it leaves. */
+export function inView(node: Element, on: (v: boolean) => void) {
+	const io = new IntersectionObserver((es) => on(es.some((e) => e.isIntersecting)), {
+		threshold: 0.1
+	});
+	io.observe(node);
+	return { destroy: () => io.disconnect() };
+}
