@@ -1,7 +1,8 @@
 <script lang="ts">
 	/**
-	 * What door.svelte.ts shows: on a desktop, a line while the model arrives (or why it couldn't); on a phone
-	 * or a tablet, the popup that says what it weighs and waits to be asked.
+	 * What door.svelte.ts shows: on a phone or a tablet, the popup that says what the model weighs and waits to be
+	 * asked. On a desktop nothing, unless the model couldn't come: its download is part of the first search's (or
+	 * page's) wait, which they show themselves.
 	 */
 	import InkLink from '#lib/ui/InkLink.svelte';
 	import { door } from './door.svelte.ts';
@@ -47,8 +48,6 @@
 	</div>
 {:else if door.error}
 	<p class="error" role="alert">No se pudo abrir la ciudad: {door.error}</p>
-{:else if downloading}
-	<p class="status" role="status">{@render arriving()}</p>
 {/if}
 
 <style>
