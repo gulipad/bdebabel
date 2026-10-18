@@ -57,7 +57,7 @@ export default defineConfig({
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
 			// Every page is computed on the reader's device: a static single-page app, no server.
-			adapter: adapter({ fallback: '200.html' })
+			adapter: adapter({ fallback: 'index.html' })
 		})
 	],
 	worker: { format: 'es' },

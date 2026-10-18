@@ -1,0 +1,11 @@
+// The city is static: every page is computed on the reader's device, so the Worker only serves files.
+// The universe it reads lives in the R2 bucket babel-universos, at universo.gulipad.com.
+{
+	"name": "babel",
+	"compatibility_date": "2026-10-01",
+	"assets": {
+		"directory": "./build",
+		"not_found_handling": "single-page-application"
+	},
+	"routes": [{ "pattern": "babel.gulipad.com", "custom_domain": true }]
+}
