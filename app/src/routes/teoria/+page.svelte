@@ -130,9 +130,9 @@
 		<Intervals />
 
 		<p>
-			Por eso al hojear casi siempre sale prosa. Una dirección al azar cae casi siempre en una
-			rodaja ancha, la de una palabra que el Bibliotecario esperaba, y así palabra tras palabra. El
-			ruido sigue ahí, en rodajas finísimas, y casi nadie llega a él.
+			Por eso al hojear sale prosa. Una dirección al azar cae casi siempre en una rodaja ancha, la
+			de una palabra que el Bibliotecario esperaba, y así palabra tras palabra. El ruido sigue ahí,
+			en rodajas finísimas - más o menos una de cada millón de páginas al azar es ruido puro.
 		</p>
 	</section>
 
@@ -157,8 +157,8 @@
 		<p>
 			No se le puede dar un nombre corto a todo, porque no hay suficientes nombres cortos (el
 			principio del palomar). Basile reparte los nombres por igual. Nosotros damos los cortos a las
-			páginas legibles y los largos al ruido. El Bibliotecario no quita ninguna página, siguen
-			estando todas, sólo cambia dónde está cada una.
+			páginas legibles y los largos al ruido. Siguen estando todas las páginas, y el Bibliotecario
+			sólo decide dónde está cada una.
 		</p>
 	</section>
 
