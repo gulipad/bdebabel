@@ -25,10 +25,10 @@
 		return RADII.at(-1)!;
 	};
 	const PAGES = [
-		{ name: '«Es una historia muy larga»', bits: 0, a: 90 },
-		{ name: '«te quiero», buscada', bits: 2126, a: 215 },
-		{ name: 'una página al azar', bits: 2322, a: 335 },
-		{ name: 'ruido puro', bits: 19500, a: 140 }
+		{ name: 'la página más probable', bits: 0, a: 90 },
+		{ name: '«te quiero», buscada', bits: 2126, a: 160 },
+		{ name: 'una página al azar', bits: 2322, a: 20 },
+		{ name: 'ruido puro', bits: 19500, a: 200 }
 	];
 	let on = $state(false);
 </script>
@@ -38,8 +38,10 @@
 		<circle class="ring void" r={RADII.at(-1)} pathLength="1" style:--d="0s" />
 		{#each RINGS as r, i (r.name)}
 			<circle class="ring" r={RADII[i + 1]} pathLength="1" style:--d="{0.2 + i * 0.3}s" />
-			<text class="name" y={-(RADII[i] + RADII[i + 1]) / 2 + 4} style:--d="{0.6 + i * 0.3}s"
-				>{r.name}</text
+			<text
+				class="name"
+				y={i === 0 ? -36 : -(RADII[i] + RADII[i + 1]) / 2 + 4}
+				style:--d="{0.6 + i * 0.3}s">{r.name}</text
 			>
 			<text class="until" y={RADII[i + 1] - 6} style:--d="{0.6 + i * 0.3}s">
 				{steps(r.until)}
@@ -55,7 +57,7 @@
 				<text
 					class="label"
 					x={x + (x < -20 ? -9 : 9)}
-					y={y + (p.bits === 0 ? 18 : 4)}
+					y={y + (p.bits === 0 ? -12 : 4)}
 					text-anchor={p.bits === 0 ? 'middle' : x < -20 ? 'end' : 'start'}
 				>
 					{p.name} · {steps(p.bits)}
@@ -64,9 +66,8 @@
 		{/each}
 	</svg>
 	<figcaption>
-		La distancia al centro, en pasos, es la longitud de la dirección de la página. El Centro es la
-		página que el bibliotecario espera más que ninguna; lo legible vive en Los Barrios; el ruido, al
-		fondo.
+		La distancia al centro, en pasos, es la longitud en bits de la dirección de una página. Los
+		límites de los anillos y las páginas marcadas son de babel-1.
 	</figcaption>
 </figure>
 

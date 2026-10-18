@@ -13,6 +13,7 @@
 	}: {
 		/** what makes this wall's books look as they do: the room and the wall */
 		seed: string;
+		/** the shelf and book chosen (volume 0: only the shelf) */
 		current?: { shelf: number; volume: number };
 		onpick: (shelf: number, volume: number) => void;
 	} = $props();
@@ -88,7 +89,14 @@
 					<line class="band" x1={b.x + 2} x2={b.x + b.w - 2} y1={floor - 8} y2={floor - 8} />
 				</g>
 			{/each}
-			<line class="plank" x1={LEFT - 10} x2={RIGHT + 10} y1={floor + 1.5} y2={floor + 1.5} />
+			<line
+				class="plank"
+				class:current={current?.shelf === s + 1}
+				x1={LEFT - 10}
+				x2={RIGHT + 10}
+				y1={floor + 1.5}
+				y2={floor + 1.5}
+			/>
 		</g>
 	{/each}
 </svg>
@@ -103,6 +111,10 @@
 		stroke: var(--sepia);
 		stroke-width: 2.2;
 		stroke-linecap: round;
+	}
+	.plank.current {
+		stroke: var(--madder);
+		stroke-width: 3;
 	}
 	.no {
 		font: italic 12px var(--display);

@@ -1,6 +1,7 @@
 <script lang="ts">
 	/** One leaf of the Library: its catalogue slip (where it is, how far) and its text, exactly as stored. */
 	import { locate, steps } from '#lib/address.ts';
+	import Trail from '#lib/browse/Trail.svelte';
 	import InkLink from '#lib/ui/InkLink.svelte';
 	import type { PageResult } from '#lib/universe/protocol.ts';
 
@@ -9,19 +10,20 @@
 
 	const where = $derived(locate(page.address));
 
-	/** the whole address, hexagon and all, onto the clipboard (or selected, where the clipboard is refused) */
-	let copied = $state(false),
-		full = $state<HTMLElement>();
+	/** the whole address, hexagon and all, onto the clipboard (the old way where the clipboard is refused) */
+	let copied = $state(false);
 	async function copy() {
 		try {
 			await navigator.clipboard.writeText(page.address);
-			copied = true;
-			setTimeout(() => (copied = false), 2200);
 		} catch {
-			if (!full) return;
-			full.closest('details')?.setAttribute('open', '');
-			getSelection()?.selectAllChildren(full);
+			const t = Object.assign(document.createElement('textarea'), { value: page.address });
+			document.body.append(t);
+			t.select();
+			document.execCommand('copy');
+			t.remove();
 		}
+		copied = true;
+		setTimeout(() => (copied = false), 2200);
 	}
 
 	/** Paragraphs as the page writes them; the searched sentence, if any, set apart. */
@@ -48,21 +50,9 @@
 
 <section class="leaf">
 	<div class="slip" aria-label="Ficha de la página">
-		<div class="row">
-			<span>Universo <b>{where?.universe ?? '—'}</b></span>
-			<span><b>{steps(page.bits)}</b> pasos del centro · {page.ring}</span>
-		</div>
-		{#if where}
-			<div class="coords">
-				<span><i>muro</i>{where.wall}</span><span><i>balda</i>{where.shelf}</span>
-				<span><i>volumen</i>{where.volume}</span><span><i>página</i>{where.page}</span>
-			</div>
-		{/if}
-		<div class="whole">
-			<details>
-				<summary>La dirección completa ({page.address.length} caracteres)</summary>
-				<div class="hex" bind:this={full}>{page.address}</div>
-			</details>
+		<p class="far"><span>{page.ring}.</span> {steps(page.bits)} pasos del centro.</p>
+		<div class="where">
+			{#if where}<Trail {where} />{/if}
 			<InkLink small onclick={copy}>{copied ? 'Copiada' : 'Copiar la dirección'}</InkLink>
 		</div>
 	</div>
@@ -86,58 +76,28 @@
 		gap: 1.2rem;
 	}
 	.slip {
-		font-family: var(--mono);
-		font-size: 0.74rem;
-		color: var(--ink-faint);
 		display: flex;
 		flex-direction: column;
-		gap: 0.55rem;
-	}
-	.row {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.4rem 1.4rem;
-	}
-	b {
-		color: var(--ink);
-		font-weight: 500;
-	}
-	.coords {
-		display: flex;
-		flex-wrap: wrap;
 		gap: 0.35rem;
 	}
-	.coords span {
-		border: 1px solid var(--rule);
-		padding: 0.15rem 0.45rem;
-		font-variant-numeric: tabular-nums;
+	.far {
+		margin: 0;
+		font: italic 1.05rem var(--display);
+		color: var(--ink-faint);
 	}
-	.coords i {
+	.far span {
 		font-style: normal;
-		margin-right: 0.3rem;
+		font-family: var(--display-sc);
+		letter-spacing: 0.1em;
+		color: var(--ink);
 	}
-	summary {
-		cursor: pointer;
-	}
-	.whole {
+	/* where the page is, and its address to take away, on one line */
+	.where {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: baseline;
 		justify-content: space-between;
-		gap: 0.4rem 1rem;
-	}
-	.whole details {
-		flex: 1 1 18rem;
-		min-width: 0;
-	}
-	.hex {
-		word-break: break-all;
-		line-height: 1.55;
-		color: var(--ink);
-		margin-top: 0.4rem;
-		max-height: 9em;
-		overflow: auto;
-		user-select: all;
+		gap: 0.3rem 1rem;
 	}
 	article {
 		background: rgba(251, 247, 238, 0.72);

@@ -17,15 +17,12 @@
 		<div class="row">
 			<p class="name">{r.name}</p>
 			<div class="track">
-				<span class="bar" style:--w={r.bits / MAX} style:--d="{i * 0.35}s"></span>
+				<span class="bar inked" style:--w={r.bits / MAX} style:--d="{i * 0.35}s"></span>
 				<span class="value">{steps(r.bits)} bits · {r.chars}</span>
 			</div>
 		</div>
 	{/each}
-	<figcaption>
-		La dirección mide lo que el bibliotecario no se esperaba. Lo legible le sale barato; el ruido,
-		más caro que a nadie.
-	</figcaption>
+	<figcaption>Longitud de la dirección de una página de 3.200 caracteres.</figcaption>
 </figure>
 
 <style>

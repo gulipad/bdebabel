@@ -105,3 +105,15 @@ export async function meltAway(node: HTMLElement, ms = 450, grain = 0.03) {
 	node.style.filter = '';
 	f.remove();
 }
+
+/** Melts an element (back) in; resolves once it is whole. */
+export async function meltIn(node: HTMLElement, ms = 600, grain = 0.03) {
+	node.style.visibility = '';
+	if (still()) return;
+	const f = filter(grain);
+	f.set(0);
+	node.style.filter = `url(#${f.id})`;
+	await run(ms, f.set);
+	node.style.filter = '';
+	f.remove();
+}

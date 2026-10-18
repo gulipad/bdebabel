@@ -1,10 +1,10 @@
 <script lang="ts">
 	/**
-	 * A room: chosen at random from Hojear, or reached from a page. From above you choose a wall; face on, a
+	 * A room: chosen at random from Ir, or reached from a page. From above you choose a wall; face on, a
 	 * book on one of its shelves; open, a page. Each choice is kept in the address bar, so going back undoes it.
 	 */
 	import { tick } from 'svelte';
-	import { goto } from '$app/navigation';
+	import { afterNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page as route } from '$app/state';
 	import { addressIn, brief, PAGES, seed, SHELVES, VOLUMES, WALLS } from '#lib/address.ts';
@@ -33,9 +33,13 @@
 	async function choose(q: Record<string, number>) {
 		// eslint-disable-next-line svelte/no-navigation-without-resolve -- here() resolves the route, then adds the query
 		await goto(here(q), { reset: false });
-		await tick();
-		steps?.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 	}
+	// after any arrival (a choice here, or a link from a page to its wall, shelf, book or page), the deepest
+	// step chosen comes into view
+	afterNavigate(async () => {
+		await tick();
+		if (wall) steps?.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+	});
 	async function open(p: number) {
 		const u = await universe().ready;
 		await goto(
@@ -48,17 +52,25 @@
 		await goto(resolve('/sala/[hexagon]', { hexagon: r.hexagon }));
 	}
 	let copied = $state(false);
+	/** the room's link, to come back to it or give it to someone */
 	async function copy() {
+		const link = location.origin + resolve('/sala/[hexagon]', { hexagon });
 		try {
-			await navigator.clipboard.writeText(hexagon);
-			copied = true;
+			await navigator.clipboard.writeText(link);
 		} catch {
-			copied = false;
+			const t = Object.assign(document.createElement('textarea'), { value: link });
+			document.body.append(t);
+			t.select();
+			document.execCommand('copy');
+			t.remove();
 		}
+		copied = true;
+		setTimeout(() => (copied = false), 2200);
 	}
+	// a book opens at the page asked for (?pagina=), or at its first
 	$effect(() => {
 		void volume;
-		page = 1;
+		page = int('pagina', PAGES) || 1;
 	});
 </script>
 
@@ -66,19 +78,15 @@
 
 <section class="sala">
 	<header>
-		<h1>Sala</h1>
-		<details>
-			<summary
-				><span class="name">{brief(hexagon)}</span> · su nombre completo tiene {hexagon.length} caracteres</summary
-			>
-			<p class="hex">{hexagon}</p>
-			<button type="button" class="copy" onclick={copy}>{copied ? 'Copiado' : 'Copiar'}</button>
-		</details>
+		<h1>Sala <span class="name">{brief(hexagon)}</span></h1>
+		<InkLink small onclick={copy}>{copied ? 'Copiado' : 'Copiar el enlace'}</InkLink>
 	</header>
 
 	<div class="steps" bind:this={steps}>
 		<div class="step">
-			<p class="ask">{wall ? 'Has escogido un muro. Puedes cambiarlo.' : 'Escoge un muro.'}</p>
+			<p class="ask">
+				{wall ? `Estás en el muro ${wall}. Puedes escoger otro.` : 'Escoge un muro.'}
+			</p>
 			<Room current={wall} onpick={(w) => choose({ muro: w })} onhall={walk} />
 		</div>
 
@@ -88,12 +96,12 @@
 					<h2>Muro {wall}</h2>
 					<p class="ask">
 						Cinco baldas, {SHELVES * VOLUMES} libros. {volume
-							? 'Tienes uno en la mano.'
+							? `Has escogido el volumen ${volume} de la balda ${shelf}.`
 							: 'Escoge uno.'}
 					</p>
 					<Wall
 						seed={`${hexagon}:${wall}`}
-						current={volume ? { shelf, volume } : undefined}
+						current={shelf ? { shelf, volume } : undefined}
 						onpick={(s, v) => choose({ muro: wall, balda: s, volumen: v })}
 					/>
 				</div>
@@ -104,7 +112,7 @@
 			{#key `${shelf}:${volume}`}
 				<div class="step" use:melt={{ ms: 900 }}>
 					<h2>Balda {shelf} · Volumen {volume}</h2>
-					<p class="ask">{PAGES} páginas. Hojéalo y escoge una.</p>
+					<p class="ask">{PAGES} páginas. Escoge una.</p>
 					<Book {volume} bind:page onopen={open} />
 				</div>
 			{/key}
@@ -112,7 +120,7 @@
 	</div>
 
 	<div class="elsewhere">
-		<InkLink small href={resolve('/hojear')}>Otra sala</InkLink>
+		<InkLink small href={resolve('/ir')}>Ir a otro sitio</InkLink>
 	</div>
 </section>
 
@@ -123,13 +131,17 @@
 		gap: 1.4rem;
 	}
 	.name {
-		font: normal 0.9rem var(--mono);
+		font: italic 400 1.5rem var(--display);
+		letter-spacing: 0.02em;
 		color: var(--ink-dry);
+		margin-left: 0.3rem;
 	}
 	header {
 		display: flex;
-		flex-direction: column;
-		gap: 0.4rem;
+		flex-wrap: wrap;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 0.4rem 1rem;
 	}
 	h1,
 	h2 {
@@ -140,23 +152,6 @@
 	}
 	h2 {
 		font-size: 1.35rem;
-	}
-	summary {
-		cursor: pointer;
-		font: italic 0.95rem var(--display);
-		color: var(--ink-faint);
-	}
-	.hex {
-		font: 0.72rem/1.55 var(--mono);
-		word-break: break-all;
-		color: var(--ink-dry);
-		max-height: 8em;
-		overflow: auto;
-		margin: 0.5rem 0;
-	}
-	.copy {
-		font-size: 0.72rem;
-		padding: 0.3rem 0.7rem;
 	}
 	.steps {
 		display: flex;

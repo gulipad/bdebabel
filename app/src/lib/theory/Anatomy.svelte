@@ -75,7 +75,8 @@
 		</g>
 	</svg>
 	<figcaption>
-		<span class="sum">4 × 5 × 32 × 410 = <b>262.400 páginas</b> por sala.</span> Cada página, 3.200 caracteres.
+		<span class="sum">4 × 5 × 32 × 410 = <b>262.400 páginas</b> por sala</span>, de 3.200 caracteres
+		cada una.
 	</figcaption>
 </figure>
 

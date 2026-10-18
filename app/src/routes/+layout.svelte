@@ -1,6 +1,6 @@
 <script lang="ts">
 	import '../app.css';
-	import { onNavigate } from '$app/navigation';
+	import { goto, onNavigate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import favicon from '#lib/assets/favicon.svg';
@@ -18,9 +18,12 @@
 	const WAYS = [
 		{ name: 'Teoría', to: '/teoria' },
 		{ name: 'Buscar', to: '/buscar' },
-		{ name: 'Hojear', to: '/hojear' }
+		{ name: 'Ir', to: '/ir' }
 	] as const;
 	const here = (to: string) => page.url.pathname.startsWith(to);
+
+	/** back to the cover, always */
+	const back = () => goto(resolve('/'));
 
 	let main = $state<HTMLElement>();
 	// leaving an inner page, it melts away before the next one melts in
@@ -48,9 +51,38 @@
 	{@render children()}
 {:else}
 	<Sheet />
+	<!--
+		The pen's hand, as on the cover: every drawing's edges shifted by a fine noise field (ink-wobble, the
+		cover's feTurbulence + feDisplacementMap), or by a coarser one for stains (ink-stain).
+	-->
+	<svg class="inks" aria-hidden="true">
+		<filter id="ink-wobble" x="-2%" y="-2%" width="104%" height="104%">
+			<feTurbulence type="fractalNoise" baseFrequency="0.06" numOctaves="2" seed="21" result="n" />
+			<feDisplacementMap
+				in="SourceGraphic"
+				in2="n"
+				scale="2.4"
+				xChannelSelector="R"
+				yChannelSelector="G"
+			/>
+		</filter>
+		<filter id="ink-stain" x="-8%" y="-8%" width="116%" height="116%">
+			<feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="3" seed="7" result="n" />
+			<feDisplacementMap
+				in="SourceGraphic"
+				in2="n"
+				scale="14"
+				xChannelSelector="R"
+				yChannelSelector="G"
+				result="d"
+			/>
+			<feTurbulence type="fractalNoise" baseFrequency="0.09" numOctaves="2" seed="3" result="f" />
+			<feDisplacementMap in="d" in2="f" scale="2.6" xChannelSelector="R" yChannelSelector="G" />
+		</filter>
+	</svg>
 	<div class="city">
 		<header>
-			<a href={resolve('/')} class="title">La Biblioteca de Babel</a>
+			<InkLink small onclick={back}>‹ Atrás</InkLink>
 			<nav>
 				{#each WAYS as way (way.to)}
 					<InkLink href={resolve(way.to)} current={here(way.to)} small>{way.name}</InkLink>
@@ -83,15 +115,16 @@
 		gap: 0.8rem 1.2rem;
 		align-items: baseline;
 		justify-content: space-between;
-		padding-bottom: 0.9rem;
-		border-bottom: 1px solid var(--rule);
 	}
-	.title {
-		font-family: var(--display-sc);
-		font-size: 1.15rem;
-		letter-spacing: 0.2em;
-		color: var(--ink);
-		text-decoration: none;
+	.inks {
+		position: absolute;
+		width: 0;
+		height: 0;
+	}
+	/* every drawing in the city is inked by hand */
+	.city :global(main svg),
+	.city :global(main .inked) {
+		filter: url(#ink-wobble);
 	}
 	nav {
 		display: flex;

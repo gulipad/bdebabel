@@ -6,9 +6,10 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page as route } from '$app/state';
-	import { brief, locate, steps } from '#lib/address.ts';
 	import Page from '#lib/components/Page.svelte';
+	import { withPhrase } from '#lib/browse/links.ts';
 	import InkLink from '#lib/ui/InkLink.svelte';
+	import { enterSubmits } from '#lib/ui/keys.ts';
 	import { melt } from '#lib/ui/melt.ts';
 	import { universe } from '#lib/universe/client.ts';
 	import type { SearchPage } from '#lib/universe/protocol.ts';
@@ -55,39 +56,6 @@
 		return () => clearInterval(t);
 	});
 
-	/**
-	 * An address, or a link to a page, pasted in: opened if it has the shape of one. The address doesn't
-	 * remember the sentence that was searched (it is an ordinary page), but a link can carry it (?frase=),
-	 * and so can the field under the address: the page then marks it where it appears.
-	 */
-	let where2 = $state(''),
-		phrase = $state(''),
-		bad = $state('');
-	function openAddress() {
-		let a = where2.trim(),
-			f = phrase.trim();
-		const q = a.indexOf('?');
-		if (q >= 0) {
-			f ||= new URLSearchParams(a.slice(q + 1)).get('frase') ?? '';
-			a = a.slice(0, q);
-		}
-		try {
-			a = decodeURIComponent(a);
-		} catch {
-			/* not encoded */
-		}
-		a = a.replace(/\s+/g, '').replace(/^.*\/(?=[^/]+$)/, '');
-		if (!locate(a)) {
-			bad = 'Esto no tiene forma de dirección: universo:hexágono:muro:balda:volumen:página.';
-			return;
-		}
-		bad = '';
-		// eslint-disable-next-line svelte/no-navigation-without-resolve -- withPhrase() resolves the route
-		goto(withPhrase(a, f));
-	}
-	/** a page's link, with the sentence to mark in it */
-	const withPhrase = (address: string, f: string) =>
-		resolve('/[address]', { address }) + (f ? `?${new URLSearchParams({ frase: f })}` : '');
 	let linked = $state(false);
 	async function copyLink() {
 		if (!result) return;
@@ -102,6 +70,14 @@
 		}
 	}
 
+	/** the box above a result starts empty, and empties again once its sentence is searched */
+	let another = $state('');
+	function searchAnother() {
+		if (!another.trim()) return;
+		search(another);
+		another = '';
+	}
+
 	function search(q = draft, n = 0) {
 		const text = q.trim();
 		if (!text || (text === query && n === nth)) return;
@@ -109,53 +85,72 @@
 		// eslint-disable-next-line svelte/no-navigation-without-resolve -- the route is resolved, then given its query
 		goto(`${resolve('/buscar')}?${params}`);
 	}
-	const where = $derived(result ? locate(result.address) : null);
 </script>
 
 <svelte:head><title>{query ? `«${query}»` : 'Buscar'} · La Biblioteca de Babel</title></svelte:head>
 
 <section class="buscar">
-	<h1>Buscar</h1>
-	<p class="lede">
-		Escribe una frase. En alguna balda ya está escrita: el bibliotecario busca la página que la
-		Biblioteca habría escrito alrededor de tus palabras, y te lleva hasta ella.
-	</p>
+	<!-- once a sentence is searched, its page is what matters: the form steps aside -->
+	{#if !query}
+		<h1>Buscar</h1>
+		<p class="lede">
+			El Bibliotecario buscará tu frase entre las casi infinitas páginas. La página que encuentre
+			estará siempre en la misma dirección.
+		</p>
 
-	<form
-		onsubmit={(e) => {
-			e.preventDefault();
-			search();
-		}}
-	>
-		<label class="field">
-			<span class="sr">Tu frase</span>
-			<textarea
-				bind:value={draft}
-				rows="2"
-				maxlength="600"
-				placeholder="«Tenía miedo de la oscuridad»"
-				onkeydown={(e) => {
-					if (e.key === 'Enter' && !e.shiftKey) {
-						e.preventDefault();
-						search();
-					}
-				}}></textarea>
-			<svg viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true">
-				<path d="M1 6 C 20 4.4, 44 7.2, 64 5.4 S 90 4.6, 99 5.6" />
-			</svg>
-		</label>
-		<div class="row">
-			<InkLink onclick={() => search()}>Buscar en la Biblioteca</InkLink>
-		</div>
-		{#if !query}
-			<p class="examples">
-				O prueba:
-				{#each EXAMPLES as ex (ex)}
-					<button type="button" class="example" onclick={() => search(ex)}>{ex}</button>
-				{/each}
-			</p>
-		{/if}
-	</form>
+		<form
+			onsubmit={(e) => {
+				e.preventDefault();
+				search();
+			}}
+		>
+			<label class="field">
+				<span class="sr">Tu frase</span>
+				<textarea
+					bind:value={draft}
+					rows="2"
+					maxlength="600"
+					placeholder="«Tenía miedo de la oscuridad»"
+					onkeydown={(e) => enterSubmits(e, () => search())}></textarea>
+				<svg viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true">
+					<path d="M1 6 C 20 4.4, 44 7.2, 64 5.4 S 90 4.6, 99 5.6" />
+				</svg>
+			</label>
+			<div class="row">
+				<InkLink onclick={() => search()}>Buscar en la Biblioteca</InkLink>
+			</div>
+			{#if !query}
+				<p class="examples">
+					O prueba:
+					{#each EXAMPLES as ex (ex)}
+						<button type="button" class="example" onclick={() => search(ex)}>{ex}</button>
+					{/each}
+				</p>
+			{/if}
+		</form>
+	{:else}
+		<!-- another sentence, right where the last one was -->
+		<form
+			class="anew"
+			onsubmit={(e) => {
+				e.preventDefault();
+				searchAnother();
+			}}
+		>
+			<label class="field">
+				<span class="sr">Otra frase</span>
+				<textarea
+					bind:value={another}
+					rows="1"
+					placeholder="Busca otra frase"
+					onkeydown={(e) => enterSubmits(e, searchAnother)}></textarea>
+				<svg viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true">
+					<path d="M1 6 C 20 4.4, 44 7.2, 64 5.4 S 90 4.6, 99 5.6" />
+				</svg>
+			</label>
+			<InkLink onclick={searchAnother}>Buscar</InkLink>
+		</form>
+	{/if}
 
 	{#if error}
 		<p class="error" role="alert">{error}</p>
@@ -169,28 +164,12 @@
 				</p>
 			{/if}
 			{#if nth}<p class="nth">Página nº {nth + 1} con esta frase</p>{/if}
-			<p class="distance">
-				Tu frase está a <b>{steps(result.bits)}</b> pasos del centro, en <i>{result.ring}</i>.
-			</p>
-			{#if where}
-				<nav class="trail" aria-label="Dónde está">
-					<a href={resolve('/sala/[hexagon]', { hexagon: where.hexagon })}
-						>Sala {brief(where.hexagon)}</a
-					><span>›</span><span>Muro {where.wall}</span><span>›</span><span
-						>Balda {where.shelf} · volumen {where.volume} · página {where.page}</span
-					>
-				</nav>
-			{/if}
 			<Page page={result} highlight={{ offset: result.offset, length: result.query.length }} />
 			<div class="again">
-				{#if nth}
-					<InkLink small onclick={() => search(query, 0)}>‹ La primera</InkLink>
-				{/if}
 				<InkLink small onclick={() => search(query, nth + 1)}>Otra página con esta frase</InkLink>
 				<InkLink small onclick={copyLink}
 					>{linked ? 'Enlace copiado' : 'Copiar el enlace con la frase'}</InkLink
 				>
-				<InkLink small href={withPhrase(result.address, result.query)}>Abrir la página</InkLink>
 			</div>
 		</div>
 	{:else if query}
@@ -209,58 +188,11 @@
 				{/each}
 			</svg>
 			<p>
-				El bibliotecario recorre las salas buscando «{query}»…
+				El Bibliotecario busca «{query}»…
 				{#if now - since > 1500}<span class="secs">{Math.round((now - since) / 1000)} s</span>{/if}
 			</p>
 		</div>
 	{/if}
-
-	<form
-		class="address"
-		onsubmit={(e) => {
-			e.preventDefault();
-			openAddress();
-		}}
-	>
-		<h2>Ir a una dirección</h2>
-		<p class="hint">
-			Si alguien te ha dado una dirección (o el enlace a una página), pégala aquí y el bibliotecario
-			te lleva hasta ella.
-		</p>
-		<label class="field">
-			<span class="sr">Dirección</span>
-			<textarea
-				class="mono"
-				bind:value={where2}
-				rows="3"
-				spellcheck="false"
-				placeholder="babel-1:hexágono:muro:balda:volumen:página"
-				onkeydown={(e) => {
-					if (e.key === 'Enter' && !e.shiftKey) {
-						e.preventDefault();
-						openAddress();
-					}
-				}}></textarea>
-			<svg viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true">
-				<path d="M1 5.6 C 24 4.2, 46 7, 66 5.2 S 90 4.8, 99 5.4" />
-			</svg>
-		</label>
-		<label class="field">
-			<span class="sr">Frase que resaltar</span>
-			<input
-				class="phrase"
-				bind:value={phrase}
-				placeholder="Y, si quieres, la frase que buscabas, para resaltarla"
-			/>
-			<svg viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true">
-				<path d="M1 5.4 C 30 4.6, 50 6.6, 70 5.2 S 92 5, 99 5.6" />
-			</svg>
-		</label>
-		{#if bad}<p class="error" role="alert">{bad}</p>{/if}
-		<div class="row">
-			<InkLink onclick={openAddress}>Abrir la página</InkLink>
-		</div>
-	</form>
 </section>
 
 <style>
@@ -313,6 +245,8 @@
 	}
 	/* a ruled line under the sentence, inked darker when you write */
 	.field svg {
+		/* too thin for the pen's wobble, which would break the rule into pieces */
+		filter: none !important;
 		display: block;
 		width: 100%;
 		height: 0.6rem;
@@ -365,16 +299,6 @@
 		flex-direction: column;
 		gap: 1rem;
 	}
-	.distance {
-		margin: 0;
-		font: italic 1.25rem var(--display);
-		color: var(--ink-dry);
-	}
-	.distance b {
-		font-style: normal;
-		font-weight: 400;
-		color: var(--ink);
-	}
 	.nth {
 		margin: 0;
 		font: 0.95rem var(--display-sc);
@@ -390,15 +314,31 @@
 		font-style: normal;
 		color: var(--ink);
 	}
-	.trail {
+	.anew {
 		display: flex;
-		flex-wrap: wrap;
-		gap: 0.2rem 0.55rem;
-		font: italic 0.98rem var(--display);
-		color: var(--ink-faint);
+		flex-direction: row;
+		align-items: flex-end;
+		gap: 1.2rem;
 	}
-	.trail a {
-		color: var(--ink-dry);
+	.anew .field {
+		flex: 1;
+		min-width: 0;
+	}
+	.anew textarea {
+		display: block;
+		width: 100%;
+		resize: none;
+		field-sizing: content;
+		border: 0;
+		background: none;
+		font: italic 1.6rem/1.35 var(--display);
+		color: var(--ink);
+		padding: 0.2rem 0 0.4rem;
+		outline: none;
+	}
+	.anew textarea::placeholder {
+		color: var(--ink-faint);
+		opacity: 0.7;
 	}
 	.again {
 		display: flex;
@@ -451,39 +391,5 @@
 	}
 	.error {
 		color: var(--madder);
-	}
-	.address {
-		margin-top: 1.4rem;
-		padding-top: 1.6rem;
-		border-top: 1px solid var(--rule);
-	}
-	h2 {
-		margin: 0;
-		font: 400 1.35rem var(--display-sc);
-		letter-spacing: 0.12em;
-		color: var(--ink);
-	}
-	.hint {
-		margin: 0;
-		font: italic 1.02rem var(--display);
-		color: var(--ink-faint);
-	}
-	.phrase {
-		display: block;
-		width: 100%;
-		border: 0;
-		background: none;
-		font: italic 1.15rem var(--display);
-		color: var(--ink);
-		padding: 0.3rem 0;
-		outline: none;
-	}
-	.phrase::placeholder {
-		color: var(--ink-faint);
-		opacity: 0.7;
-	}
-	textarea.mono {
-		font: 0.85rem/1.5 var(--mono);
-		word-break: break-all;
 	}
 </style>

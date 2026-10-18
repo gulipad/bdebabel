@@ -6,6 +6,7 @@
 	 */
 	import { steps } from '#lib/address.ts';
 	import { seen } from '#lib/ui/seen.ts';
+	import Log from './Log.svelte';
 
 	const NEED = 4683,
 		LAST = Math.ceil((NEED - 15) / 80); // 59
@@ -22,7 +23,7 @@
 		return Array.from({ length: 70 }, () => {
 			const a = r() * Math.PI * 2,
 				d = Math.sqrt(r()) * 86;
-			return { x: 100 + d * Math.cos(a), y: 100 + d * Math.sin(a), r: 1 + r() * 1.6 };
+			return { x: 100 + d * Math.cos(a), y: 100 + d * Math.sin(a), r: 1.6 + r() * 1.9 };
 		});
 	};
 	const target = (n: number) => atoms(n)[n % 70];
@@ -60,7 +61,16 @@
 
 <figure use:seen={(v) => (on = v)}>
 	<div class="stage">
-		<svg viewBox="0 0 200 200" role="img" aria-label="Universos dentro de universos">
+		<svg viewBox="-14 -14 228 228" role="img" aria-label="Universos dentro de universos">
+			<defs>
+				<!-- a pool of ink: pale in the middle, darkest just inside its edge, where it dried -->
+				<radialGradient id="universe-pool">
+					<stop offset="0" stop-color="#5c3a22" stop-opacity="0.1" />
+					<stop offset="0.72" stop-color="#5c3a22" stop-opacity="0.16" />
+					<stop offset="0.93" stop-color="#5c3a22" stop-opacity="0.42" />
+					<stop offset="1" stop-color="#5c3a22" stop-opacity="0.18" />
+				</radialGradient>
+			</defs>
 			{#key level}
 				<g class="universe" class:zooming style:transform={zoom}>
 					<circle class="edge" cx="100" cy="100" r="92" />
@@ -82,9 +92,8 @@
 		</div>
 	</div>
 	<figcaption>
-		Una página son 3.200 × log₂ 29 ≈ 15.546 bits, unos 1.943 bytes, así que la Biblioteca ocupa 10<sup
-			>4.680</sup
-		>
+		Una página son 3.200 × <Log of="29" minus={false} /> ≈ 15.546 bits, unos 1.943 bytes, así que la Biblioteca
+		ocupa 10<sup>4.680</sup>
 		páginas × 1.943 bytes ≈ 10<sup>4.683</sup> bytes. Un universo de discos de 1 PB guarda 10<sup
 			>80</sup
 		>
@@ -112,22 +121,23 @@
 	svg {
 		width: 100%;
 		max-width: 14rem;
+		/* seen through a round lens while zooming in (with room for the stain's ragged edge) */
 		overflow: hidden;
-		border-radius: 50%;
+		clip-path: circle(50%);
+		/* a stain, not a drawing */
+		filter: url(#ink-stain) !important;
 	}
 	.universe {
 		transform-origin: 0 0;
 		transition: transform 0.85s cubic-bezier(0.5, 0, 0.75, 0.2);
 	}
 	.edge {
-		fill: rgba(92, 58, 34, 0.04);
-		stroke: var(--sepia);
-		stroke-width: 1.2;
-		vector-effect: non-scaling-stroke;
+		fill: url(#universe-pool);
+		stroke: none;
 	}
 	.atom {
 		fill: var(--sepia);
-		opacity: 0.75;
+		opacity: 0.8;
 	}
 	.atom.target {
 		fill: var(--madder);

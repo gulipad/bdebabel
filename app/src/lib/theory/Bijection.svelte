@@ -46,8 +46,8 @@
 		</div>
 	</div>
 	<figcaption>
-		Una función que se puede deshacer. Nada está guardado en ningún sitio: la dirección <i>es</i> la página,
-		disfrazada.
+		La función va en los dos sentidos. Ninguna página está guardada en ningún sitio, porque la
+		dirección ya contiene la página entera, codificada.
 	</figcaption>
 </figure>
 

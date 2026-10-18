@@ -5,6 +5,7 @@
 	 * on. Each choice costs −log₂ p bits. Probabilities here are made up to show the idea, not the model's.
 	 */
 	import { seen } from '#lib/ui/seen.ts';
+	import Log from './Log.svelte';
 
 	const LEVELS: { seg: [string, number][]; pick: number }[] = [
 		{
@@ -73,6 +74,12 @@
 			0
 		)
 	);
+	/** the same sentence in Basile's library: every character log₂ 29 bits */
+	const basile = $derived(
+		LEVELS.map((l) => l.seg[l.pick]![0])
+			.join(' ')
+			.replace(' .', '.').length * Math.log2(29)
+	);
 	const sentence = $derived(words.join(' ').replace(' .', '.').replace(' ,', ','));
 
 	$effect(() => {
@@ -109,7 +116,11 @@
 	<p class="sentence" aria-live="polite">
 		{#if sentence}«{sentence}»{:else}&nbsp;{/if}
 		<span class="bits"
-			>{bits ? `${bits.toLocaleString('es-ES', { maximumFractionDigits: 1 })} bits` : ''}</span
+			>{bits
+				? `${bits.toLocaleString('es-ES', { maximumFractionDigits: 1 })} bits`
+				: ''}{#if phase === 'done'}<span class="basile"
+					>en la de Basile, {basile.toLocaleString('es-ES', { maximumFractionDigits: 1 })} bits</span
+				>{/if}</span
 		>
 	</p>
 	<svg
@@ -151,10 +162,9 @@
 		</g>
 	</svg>
 	<figcaption>
-		La dirección es un punto en esa línea. Cada palabra es la rodaja en la que cae, y cuesta <i
-			>−log₂ p</i
-		> bits: las probables cuestan poco, las raras mucho. (Las probabilidades del dibujo son inventadas,
-		para que se vea la idea.)
+		La dirección es un punto de esa línea, y cada palabra es la rodaja en la que cae. Cada palabra
+		cuesta
+		<Log /> bits, poco si es probable y mucho si es rara. Las probabilidades del dibujo son inventadas.
 	</figcaption>
 </figure>
 
@@ -171,6 +181,12 @@
 		align-items: baseline;
 		gap: 1rem;
 		min-height: 2rem;
+	}
+	.basile {
+		display: block;
+		color: var(--ink-faint);
+		font-size: 0.78rem;
+		text-align: right;
 	}
 	.bits {
 		font: 0.85rem var(--mono);

@@ -3,9 +3,10 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page as route } from '$app/state';
-	import { addressIn, brief, locate, PAGES, seed } from '#lib/address.ts';
+	import { addressIn, locate, PAGES, seed } from '#lib/address.ts';
 	import Page from '#lib/components/Page.svelte';
 	import InkLink from '#lib/ui/InkLink.svelte';
+	import { melt } from '#lib/ui/melt.ts';
 	import { universe } from '#lib/universe/client.ts';
 	import type { PageResult } from '#lib/universe/protocol.ts';
 
@@ -39,7 +40,6 @@
 		const j = i >= 0 ? i : result.text.toLowerCase().indexOf(phrase.toLowerCase());
 		return j >= 0 ? { offset: j, length: phrase.length } : undefined;
 	});
-	const room = $derived(where ? resolve('/sala/[hexagon]', { hexagon: where.hexagon }) : '');
 	const turn = (d: number) =>
 		where
 			? resolve('/[address]', {
@@ -68,24 +68,13 @@
 	></svelte:head
 >
 
-{#if where}
-	<!-- eslint-disable svelte/no-navigation-without-resolve -- room is resolved, then given a query -->
-	<nav class="trail" aria-label="Dónde está">
-		<a href={room}>Sala {brief(where.hexagon)}</a><span>›</span>
-		<a href={`${room}?muro=${where.wall}`}>Muro {where.wall}</a><span>›</span>
-		<a href={`${room}?muro=${where.wall}&balda=${where.shelf}&volumen=${where.volume}`}
-			>Balda {where.shelf} · volumen {where.volume}</a
-		>
-	</nav>
-	<!-- eslint-enable svelte/no-navigation-without-resolve -->
-{/if}
-
 {#if error}
 	<p class="error" role="alert">{error}</p>
 {:else if result}
-	<Page page={result} highlight={mark} />
+	<!-- the page melts in once it is written, as everything does -->
+	<div use:melt={{ ms: 1100 }}><Page page={result} highlight={mark} /></div>
 {:else}
-	<p class="writing" role="status">El bibliotecario está escribiendo la página…</p>
+	<p class="writing" role="status">El Bibliotecario está escribiendo la página…</p>
 {/if}
 
 {#if where && !error}
@@ -99,17 +88,6 @@
 {/if}
 
 <style>
-	.trail {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.2rem 0.55rem;
-		font: italic 0.98rem var(--display);
-		color: var(--ink-faint);
-		margin-bottom: 1.2rem;
-	}
-	.trail a {
-		color: var(--ink-dry);
-	}
 	.error {
 		color: var(--madder);
 	}

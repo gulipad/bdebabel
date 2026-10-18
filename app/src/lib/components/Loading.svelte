@@ -1,5 +1,5 @@
 <script lang="ts">
-	/** How the city is arriving: the manifest, the engine, the 77 MB model (once), then ready. */
+	/** How the city is arriving: only the 77 MB model's download is worth telling (once), and any failure. */
 	import { onMount } from 'svelte';
 	import { universe, type Progress } from '#lib/universe/client.ts';
 
@@ -17,19 +17,16 @@
 		if (error) return `No se pudo abrir la ciudad: ${error}`;
 		switch (progress.stage) {
 			case 'manifest':
-				return 'Abriendo el catálogo…';
 			case 'engine':
-				return 'Comprobando el motor…';
+			case 'verify':
+			case 'ready':
+				return '';
 			case 'model': {
 				const mb = (n: number) => (n / 1e6).toFixed(0);
 				return progress.total
-					? `Llega el bibliotecario: ${mb(progress.loaded)} de ${mb(progress.total)} MB`
-					: 'Llega el bibliotecario…';
+					? `Llega el Bibliotecario: ${mb(progress.loaded)} de ${mb(progress.total)} MB`
+					: 'Llega el Bibliotecario…';
 			}
-			case 'verify':
-				return 'Comprobando cada archivo…';
-			case 'ready':
-				return '';
 		}
 	});
 </script>

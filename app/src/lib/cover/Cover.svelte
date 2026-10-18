@@ -37,9 +37,10 @@
 		type Pt
 	} from '#lib/pen/pen.ts';
 	import { livePool } from '#lib/pen/pool-gl.ts';
+	import { meltAway, meltIn } from '#lib/ui/melt.ts';
 	import { hasMovedWithin } from '#lib/ui/visit.ts';
 
-	let canvas: HTMLCanvasElement;
+	let canvas: HTMLCanvasElement, stage: HTMLDivElement;
 
 	/** the bands on the go (a gallery, and when it began to ink in), and the frame that carries them on */
 	let bands: { g: number; start: number }[] = [],
@@ -70,7 +71,7 @@
 	const WAYS = [
 		{ name: 'Teoría', to: '/teoria' },
 		{ name: 'Buscar', to: '/buscar' },
-		{ name: 'Hojear', to: '/hojear' }
+		{ name: 'Ir', to: '/ir' }
 	] as const;
 	type Way = (typeof WAYS)[number]['to'];
 	/** reaching the cover from inside the city: no entrance, everything melts in at once, quickly */
@@ -1004,9 +1005,21 @@
 
 	onMount(() => {
 		let timer = 0;
+		// resizing: the sheet melts away at once, is drawn again for the new size, and melts back in
+		// (only the last resize brings it back, once the sheet for the final size is drawn)
+		let away: Promise<void> | null = null,
+			last = 0;
 		const redraw = () => {
+			away ??= meltAway(stage, 260);
 			clearTimeout(timer);
-			timer = window.setTimeout(render, 200);
+			timer = window.setTimeout(async () => {
+				const mine = ++last;
+				await away;
+				await render();
+				if (mine !== last) return;
+				away = null;
+				meltIn(stage, 650);
+			}, 220);
 		};
 		fonts = Promise.all(PLANO_FONTS.map((f) => document.fonts.load(f).catch(() => null)));
 		// with reduced motion the lettering is simply there, and stays
@@ -1035,7 +1048,7 @@
 	});
 </script>
 
-<div class="stage">
+<div class="stage" bind:this={stage}>
 	<canvas bind:this={canvas} aria-label="Plano de las galerías de la Ciudad de Babel"></canvas>
 	<!-- the ways melt in like the ink: a blotchy, grainy noise that passes a threshold rising with `waysIn` -->
 	<svg class="defs" aria-hidden="true">

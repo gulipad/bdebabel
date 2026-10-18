@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addressIn, brief, locate, steps } from './address';
+import { addressIn, brief, locate, parsePlace, placeParts, steps, strangers } from './address';
 
 describe('locate', () => {
 	it('reads the six parts of an address', () => {
@@ -46,5 +46,62 @@ describe('brief', () => {
 	it('shortens long hexagon names to their ends, and leaves short ones alone', () => {
 		expect(brief('abcdefghijklmnop', 3)).toBe('abc…nop');
 		expect(brief('abcdefg', 3)).toBe('abcdefg');
+	});
+});
+
+describe('parsePlace', () => {
+	it('reads a full address, and one cut short', () => {
+		expect(parsePlace('babel-1:2bwWz7:4:1:1:399')).toEqual({
+			universe: 'babel-1',
+			hexagon: '2bwWz7',
+			wall: 4,
+			shelf: 1,
+			volume: 1,
+			page: 399,
+			phrase: undefined
+		});
+		expect(parsePlace('babel-1:2bwWz7:4:2')).toMatchObject({
+			hexagon: '2bwWz7',
+			wall: 4,
+			shelf: 2
+		});
+		expect(parsePlace('babel-1:2bwWz7:4:2')?.volume).toBeUndefined();
+	});
+	it('reads a room on its own name, in the default universe', () => {
+		expect(parsePlace('  2bwWz7 ')).toMatchObject({ universe: 'babel-1', hexagon: '2bwWz7' });
+	});
+	it('reads the links to rooms and pages, encoded or not', () => {
+		expect(parsePlace('https://example.org/sala/2bwWz7?muro=3&balda=5')).toMatchObject({
+			hexagon: '2bwWz7',
+			wall: 3,
+			shelf: 5
+		});
+		expect(
+			parsePlace('http://localhost:5199/babel-1%3A2bwWz7%3A1%3A2%3A3%3A4?frase=te+quiero')
+		).toMatchObject({
+			hexagon: '2bwWz7',
+			wall: 1,
+			shelf: 2,
+			volume: 3,
+			page: 4,
+			phrase: 'te quiero'
+		});
+	});
+	it('refuses what is not a place', () => {
+		expect(parsePlace('')).toBeNull();
+		expect(parsePlace('hola, ¿qué tal?')).toBeNull();
+		expect(parsePlace('babel-1:2bwWz7:5')).toBeNull();
+		expect(parsePlace('babel-1:2bwWz7:1:1:1:411')).toBeNull();
+	});
+});
+
+describe('placeParts and strangers', () => {
+	it('reads a place out of range without judging it, so what is wrong can be said', () => {
+		expect(placeParts('2bwWz7:7:1')).toMatchObject({ hexagon: '2bwWz7', wall: 7, shelf: 1 });
+		expect(parsePlace('2bwWz7:7:1')).toBeNull();
+	});
+	it('names the characters a room cannot have', () => {
+		expect(strangers('2bw-Wñz7ñ')).toBe('-ñ');
+		expect(strangers('2bwWz7')).toBe('');
 	});
 });
