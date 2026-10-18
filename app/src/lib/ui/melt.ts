@@ -27,24 +27,39 @@ function region(node: HTMLElement | SVGElement) {
 	};
 }
 
-/** A filter of its own for one element; `set(p)` shows that much of it (0..1). */
+/**
+ * A filter of its own for one element; `set(p)` shows that much of it (0..1). It is two identical filters: each
+ * step writes the threshold (and the region, measured again, since a page's content may arrive after it mounts)
+ * into the one not in use, and points the element at it. iOS Safari keeps drawing a new element the way its
+ * filter first drew it unless the element's own filter changes, so a melt-in stayed blank and then popped.
+ */
 function filter(node: HTMLElement | SVGElement, grain: number) {
-	const id = `melt-${++made}`;
-	const { x, y, width, height } = region(node);
+	const id = `melt-${++made}`,
+		seed = made % 89;
 	const svg = document.createElementNS(NS, 'svg');
 	svg.setAttribute('aria-hidden', 'true');
 	svg.style.cssText = 'position:absolute;width:0;height:0;pointer-events:none';
-	svg.innerHTML = `<filter id="${id}" filterUnits="userSpaceOnUse" x="${x}" y="${y}" width="${width}" height="${height}">
-		<feTurbulence type="fractalNoise" baseFrequency="${grain}" numOctaves="4" seed="${made % 89}" />
+	svg.innerHTML = ['a', 'b']
+		.map(
+			(k) => `<filter id="${id}${k}" filterUnits="userSpaceOnUse">
+		<feTurbulence type="fractalNoise" baseFrequency="${grain}" numOctaves="4" seed="${seed}" />
 		<feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  1 0 0 0 0" />
 		<feComponentTransfer result="m"><feFuncA type="linear" slope="8" intercept="-6" /></feComponentTransfer>
 		<feComposite in="SourceGraphic" in2="m" operator="in" />
-	</filter>`;
+	</filter>`
+		)
+		.join('');
 	document.body.append(svg);
-	const a = svg.querySelector('feFuncA')!;
-	node.style.filter = `url(#${id})`;
+	const filters = svg.querySelectorAll('filter');
+	let shown = 0;
 	return {
-		set: (p: number) => a.setAttribute('intercept', String(-5.8 + p * 4.6)),
+		set: (p: number) => {
+			shown = 1 - shown;
+			const f = filters[shown];
+			for (const [k, v] of Object.entries(region(node))) f.setAttribute(k, String(v));
+			f.querySelector('feFuncA')!.setAttribute('intercept', String(-5.8 + p * 4.6));
+			node.style.filter = `url(#${id}${shown ? 'b' : 'a'})`;
+		},
 		remove: () => svg.remove()
 	};
 }
