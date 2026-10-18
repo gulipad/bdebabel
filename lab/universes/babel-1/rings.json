@@ -10,23 +10,23 @@
  },
  "rings": [
   {
-   "name": "el centro",
+   "name": "El Centro",
    "until": 2078
   },
   {
-   "name": "los barrios",
+   "name": "Los Barrios",
    "until": 2820
   },
   {
-   "name": "las afueras",
+   "name": "Las Afueras",
    "until": 5640
   },
   {
-   "name": "los confines",
+   "name": "Los Confines",
    "until": 22560
   },
   {
-   "name": "el vacío",
+   "name": "El Vacío",
    "until": null
   }
  ],

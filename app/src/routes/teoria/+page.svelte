@@ -144,28 +144,28 @@
 	</section>
 
 	<section use:melt={{ onView: true }}>
-		<h2>El centro y las afueras</h2>
+		<h2>El Centro y Las Afueras</h2>
 		<p>
 			Si la dirección mide la sorpresa, también mide una distancia. La llamamos <i>pasos</i>. Una
 			página está a tantos pasos del centro como bits tiene su dirección, y la distancia es de la
 			página, no del sitio donde la encuentres.
 		</p>
 		<p>
-			El centro existe. Está en <a
+			El Centro existe. Está en <a
 				class="address"
 				href={resolve('/[address]', { address: 'babel-1:0:1:1:1:1' })}>babel-1:0:1:1:1:1</a
 			>, a 0 pasos, y es la página que el bibliotecario espera más que ninguna. Empieza así, «—No,
 			no, no —dijo el señor Bergeret—. Es una historia muy larga, y no me gusta.» Y sigue, durante
-			toda la página, con «—No, no es una historia muy larga.» El centro de una biblioteca que lo
+			toda la página, con «—No, no es una historia muy larga.» El Centro de una biblioteca que lo
 			contiene todo es un señor diciendo que no (Bergeret, por cierto, es un personaje de Anatole
 			France que el bibliotecario se trajo de sus lecturas).
 		</p>
 		<p>
-			Alrededor, los anillos. <i>El centro</i> llega hasta 2.078 pasos, con prosa muy previsible y
-			repeticiones. <i>Los barrios</i>, hasta 2.820, son páginas de novela - ahí cae casi todo lo
-			que hojeas. <i>Las afueras</i>, hasta 5.640, traen nombres raros y frases torcidas.
-			<i>Los confines</i>, hasta 22.560, palabras sueltas entre ruido. Y más allá está
-			<i>el vacío</i>, la Biblioteca de Basile dentro de la nuestra.
+			Alrededor, los anillos. <i>El Centro</i> llega hasta 2.078 pasos, con prosa muy previsible y
+			repeticiones. <i>Los Barrios</i>, hasta 2.820, son páginas de novela - ahí cae casi todo lo
+			que hojeas. <i>Las Afueras</i>, hasta 5.640, traen nombres raros y frases torcidas.
+			<i>Los Confines</i>, hasta 22.560, palabras sueltas entre ruido. Y más allá está
+			<i>El Vacío</i>, la Biblioteca de Basile dentro de la nuestra.
 		</p>
 
 		<Rings />
@@ -173,7 +173,7 @@
 		<p class="beat">Es Borges al revés.</p>
 		<p>
 			En su Biblioteca, el sentido es un milagro perdido entre el ruido. En esta, el sentido es lo
-			normal, cerca del centro, y el ruido vive en las afueras.
+			normal, cerca de El Centro, y el ruido vive en Las Afueras.
 		</p>
 	</section>
 

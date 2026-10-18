@@ -7,10 +7,10 @@
 	import { seen } from '#lib/ui/seen.ts';
 
 	const RINGS = [
-		{ name: 'el centro', until: 2078 },
-		{ name: 'los barrios', until: 2820 },
-		{ name: 'las afueras', until: 5640 },
-		{ name: 'los confines', until: 22560 }
+		{ name: 'El Centro', until: 2078 },
+		{ name: 'Los Barrios', until: 2820 },
+		{ name: 'Las Afueras', until: 5640 },
+		{ name: 'Los Confines', until: 22560 }
 	];
 	const RADII = [0, 52, 104, 150, 196, 236];
 	const STOPS = [0, ...RINGS.map((r) => r.until), 40000];
@@ -45,7 +45,7 @@
 				{steps(r.until)}
 			</text>
 		{/each}
-		<text class="name" y={-(RADII[4] + RADII[5]) / 2 + 4} style:--d="1.8s">el vacío</text>
+		<text class="name" y={-(RADII[4] + RADII[5]) / 2 + 4} style:--d="1.8s">El Vacío</text>
 		{#each PAGES as p, i (p.name)}
 			{@const r = radius(p.bits)}
 			{@const x = r * Math.cos((p.a * Math.PI) / 180)}
@@ -64,8 +64,8 @@
 		{/each}
 	</svg>
 	<figcaption>
-		La distancia al centro, en pasos, es la longitud de la dirección de la página. El centro es la
-		página que el bibliotecario espera más que ninguna; lo legible vive en los barrios; el ruido, al
+		La distancia al centro, en pasos, es la longitud de la dirección de la página. El Centro es la
+		página que el bibliotecario espera más que ninguna; lo legible vive en Los Barrios; el ruido, al
 		fondo.
 	</figcaption>
 </figure>

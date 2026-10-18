@@ -21,11 +21,11 @@ from universe import UNIVERSES, address_of, load, number_of  # noqa: E402
 
 LOCK = threading.Lock()  # one model, one page at a time
 DEFAULT_RINGS = [  # until lab/distance.py has calibrated the universe
-    {"name": "el centro", "about": "Lo más previsible: fórmulas, repeticiones.", "from_bits": 0, "to_bits": 1900},
-    {"name": "los barrios", "about": "Páginas de novela típicas: donde aterriza el paseo.", "from_bits": 1900, "to_bits": 3000},
-    {"name": "las afueras", "about": "Páginas raras: nombres, giros extraños, otras lenguas.", "from_bits": 3000, "to_bits": 6000},
-    {"name": "los confines", "about": "Fragmentos y ruido mezclado con palabras.", "from_bits": 6000, "to_bits": 14500},
-    {"name": "el vacío", "about": "Ruido puro: la biblioteca de Basile.", "from_bits": 14500, "to_bits": None},
+    {"name": "El Centro", "about": "Lo más previsible: fórmulas, repeticiones.", "from_bits": 0, "to_bits": 1900},
+    {"name": "Los Barrios", "about": "Páginas de novela típicas: donde aterriza el paseo.", "from_bits": 1900, "to_bits": 3000},
+    {"name": "Las Afueras", "about": "Páginas raras: nombres, giros extraños, otras lenguas.", "from_bits": 3000, "to_bits": 6000},
+    {"name": "Los Confines", "about": "Fragmentos y ruido mezclado con palabras.", "from_bits": 6000, "to_bits": 14500},
+    {"name": "El Vacío", "about": "Ruido puro: la biblioteca de Basile.", "from_bits": 14500, "to_bits": None},
 ]
 
 

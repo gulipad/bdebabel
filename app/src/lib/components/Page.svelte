@@ -1,12 +1,28 @@
 <script lang="ts">
 	/** One leaf of the Library: its catalogue slip (where it is, how far) and its text, exactly as stored. */
 	import { locate, steps } from '#lib/address.ts';
+	import InkLink from '#lib/ui/InkLink.svelte';
 	import type { PageResult } from '#lib/universe/protocol.ts';
 
 	let { page, highlight }: { page: PageResult; highlight?: { offset: number; length: number } } =
 		$props();
 
 	const where = $derived(locate(page.address));
+
+	/** the whole address, hexagon and all, onto the clipboard (or selected, where the clipboard is refused) */
+	let copied = $state(false),
+		full = $state<HTMLElement>();
+	async function copy() {
+		try {
+			await navigator.clipboard.writeText(page.address);
+			copied = true;
+			setTimeout(() => (copied = false), 2200);
+		} catch {
+			if (!full) return;
+			full.closest('details')?.setAttribute('open', '');
+			getSelection()?.selectAllChildren(full);
+		}
+	}
 
 	/** Paragraphs as the page writes them; the searched sentence, if any, set apart. */
 	const paragraphs = $derived.by(() => {
@@ -42,10 +58,13 @@
 				<span><i>volumen</i>{where.volume}</span><span><i>página</i>{where.page}</span>
 			</div>
 		{/if}
-		<details>
-			<summary>Hexágono (la dirección completa)</summary>
-			<div class="hex">{page.address}</div>
-		</details>
+		<div class="whole">
+			<details>
+				<summary>La dirección completa ({page.address.length} caracteres)</summary>
+				<div class="hex" bind:this={full}>{page.address}</div>
+			</details>
+			<InkLink small onclick={copy}>{copied ? 'Copiada' : 'Copiar la dirección'}</InkLink>
+		</div>
 	</div>
 
 	<article>
@@ -99,6 +118,17 @@
 	}
 	summary {
 		cursor: pointer;
+	}
+	.whole {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 0.4rem 1rem;
+	}
+	.whole details {
+		flex: 1 1 18rem;
+		min-width: 0;
 	}
 	.hex {
 		word-break: break-all;

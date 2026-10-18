@@ -99,8 +99,8 @@ async function rings(uid, pages) {
   bits.sort((a, b) => a - b);
   const q = (p) => bits[Math.min(bits.length - 1, Math.floor(p * bits.length))];
   const out = { universe: uid, pages, percentiles: { p1: q(0.01), p10: q(0.1), p50: q(0.5), p90: q(0.9), p99: q(0.99) },
-    rings: [ { name: "el centro", until: q(0.01) }, { name: "los barrios", until: q(0.99) },
-             { name: "las afueras", until: 2 * q(0.99) }, { name: "los confines", until: 8 * q(0.99) }, { name: "el vacío", until: null } ],
+    rings: [ { name: "El Centro", until: q(0.01) }, { name: "Los Barrios", until: q(0.99) },
+             { name: "Las Afueras", until: 2 * q(0.99) }, { name: "Los Confines", until: 8 * q(0.99) }, { name: "El Vacío", until: null } ],
     note: "Boundaries from the distances of pages opened at random addresses: the 1% nearest are the center, the middle 98% the neighbourhoods where browsing lands; beyond, text the Library finds increasingly unlikely." };
   writeFileSync(join(u.d, "rings.json"), JSON.stringify(out, null, 1));
   console.log(JSON.stringify(out.percentiles));

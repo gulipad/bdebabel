@@ -31,6 +31,14 @@
 			.catch((e: Error) => (error = e.message));
 	});
 
+	/** a sentence the link asks to mark (?frase=), where the page has it */
+	const phrase = $derived(route.url.searchParams.get('frase') ?? '');
+	const mark = $derived.by(() => {
+		if (!result || !phrase) return undefined;
+		const i = result.text.indexOf(phrase);
+		const j = i >= 0 ? i : result.text.toLowerCase().indexOf(phrase.toLowerCase());
+		return j >= 0 ? { offset: j, length: phrase.length } : undefined;
+	});
 	const room = $derived(where ? resolve('/sala/[hexagon]', { hexagon: where.hexagon }) : '');
 	const turn = (d: number) =>
 		where
@@ -75,7 +83,7 @@
 {#if error}
 	<p class="error" role="alert">{error}</p>
 {:else if result}
-	<Page page={result} />
+	<Page page={result} highlight={mark} />
 {:else}
 	<p class="writing" role="status">El bibliotecario está escribiendo la página…</p>
 {/if}

@@ -6,7 +6,7 @@ export interface PageResult {
 	text: string;
 	/** distance from the center: the length of the page's number in bits */
 	bits: number;
-	/** the ring that distance falls in ("el centro", "los barrios", …) */
+	/** the ring that distance falls in ("El Centro", "Los Barrios", …) */
 	ring: string;
 }
 

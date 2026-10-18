@@ -6,7 +6,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page as route } from '$app/state';
-	import { brief, locate, seed, steps } from '#lib/address.ts';
+	import { brief, locate, steps } from '#lib/address.ts';
 	import Page from '#lib/components/Page.svelte';
 	import InkLink from '#lib/ui/InkLink.svelte';
 	import { melt } from '#lib/ui/melt.ts';
@@ -14,11 +14,16 @@
 	import type { SearchPage } from '#lib/universe/protocol.ts';
 
 	const query = $derived(route.url.searchParams.get('q') ?? '');
+	/**
+	 * which result for this phrase (0: the first). The search's seed is this number, so a phrase always gives
+	 * the same first page, on any device, and the same second, third…: the universe's own fixtures search
+	 * with seed '0'
+	 */
+	const nth = $derived(Math.max(0, Math.floor(Number(route.url.searchParams.get('n')) || 0)));
 	// the sentence being written, starting from the one searched
 	let draft = $derived(query);
 	let result = $state<SearchPage | null>(null),
 		error = $state(''),
-		attempt = $state(0),
 		since = $state(0),
 		now = $state(0);
 
@@ -30,16 +35,16 @@
 	];
 
 	$effect(() => {
-		const q = query;
-		void attempt;
+		const q = query,
+			n = nth;
 		result = null;
 		error = '';
 		if (!q) return;
 		since = performance.now();
 		universe()
-			.search(q, seed())
+			.search(q, String(n))
 			.then((p) => {
-				if (q === query) result = p;
+				if (q === query && n === nth) result = p;
 			})
 			.catch((e: Error) => (error = e.message));
 	});
@@ -50,11 +55,22 @@
 		return () => clearInterval(t);
 	});
 
-	/** an address, or a link to a page, pasted in: opened if it has the shape of one */
+	/**
+	 * An address, or a link to a page, pasted in: opened if it has the shape of one. The address doesn't
+	 * remember the sentence that was searched (it is an ordinary page), but a link can carry it (?frase=),
+	 * and so can the field under the address: the page then marks it where it appears.
+	 */
 	let where2 = $state(''),
+		phrase = $state(''),
 		bad = $state('');
 	function openAddress() {
-		let a = where2.trim();
+		let a = where2.trim(),
+			f = phrase.trim();
+		const q = a.indexOf('?');
+		if (q >= 0) {
+			f ||= new URLSearchParams(a.slice(q + 1)).get('frase') ?? '';
+			a = a.slice(0, q);
+		}
 		try {
 			a = decodeURIComponent(a);
 		} catch {
@@ -66,15 +82,32 @@
 			return;
 		}
 		bad = '';
-		goto(resolve('/[address]', { address: a }));
+		// eslint-disable-next-line svelte/no-navigation-without-resolve -- withPhrase() resolves the route
+		goto(withPhrase(a, f));
+	}
+	/** a page's link, with the sentence to mark in it */
+	const withPhrase = (address: string, f: string) =>
+		resolve('/[address]', { address }) + (f ? `?${new URLSearchParams({ frase: f })}` : '');
+	let linked = $state(false);
+	async function copyLink() {
+		if (!result) return;
+		try {
+			await navigator.clipboard.writeText(
+				location.origin + withPhrase(result.address, result.query)
+			);
+			linked = true;
+			setTimeout(() => (linked = false), 2200);
+		} catch {
+			linked = false;
+		}
 	}
 
-	function search(q = draft) {
+	function search(q = draft, n = 0) {
 		const text = q.trim();
-		if (!text) return;
-		if (text === query) attempt++;
+		if (!text || (text === query && n === nth)) return;
+		const params = new URLSearchParams(n ? { q: text, n: String(n) } : { q: text });
 		// eslint-disable-next-line svelte/no-navigation-without-resolve -- the route is resolved, then given its query
-		else goto(`${resolve('/buscar')}?${new URLSearchParams({ q: text })}`);
+		goto(`${resolve('/buscar')}?${params}`);
 	}
 	const where = $derived(result ? locate(result.address) : null);
 </script>
@@ -135,6 +168,7 @@
 					>
 				</p>
 			{/if}
+			{#if nth}<p class="nth">Página nº {nth + 1} con esta frase</p>{/if}
 			<p class="distance">
 				Tu frase está a <b>{steps(result.bits)}</b> pasos del centro, en <i>{result.ring}</i>.
 			</p>
@@ -149,10 +183,14 @@
 			{/if}
 			<Page page={result} highlight={{ offset: result.offset, length: result.query.length }} />
 			<div class="again">
-				<InkLink small onclick={() => attempt++}>Otra página con esta frase</InkLink>
-				<InkLink small href={resolve('/[address]', { address: result.address })}
-					>Abrir la página</InkLink
+				{#if nth}
+					<InkLink small onclick={() => search(query, 0)}>‹ La primera</InkLink>
+				{/if}
+				<InkLink small onclick={() => search(query, nth + 1)}>Otra página con esta frase</InkLink>
+				<InkLink small onclick={copyLink}
+					>{linked ? 'Enlace copiado' : 'Copiar el enlace con la frase'}</InkLink
 				>
+				<InkLink small href={withPhrase(result.address, result.query)}>Abrir la página</InkLink>
 			</div>
 		</div>
 	{:else if query}
@@ -205,6 +243,17 @@
 				}}></textarea>
 			<svg viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true">
 				<path d="M1 5.6 C 24 4.2, 46 7, 66 5.2 S 90 4.8, 99 5.4" />
+			</svg>
+		</label>
+		<label class="field">
+			<span class="sr">Frase que resaltar</span>
+			<input
+				class="phrase"
+				bind:value={phrase}
+				placeholder="Y, si quieres, la frase que buscabas, para resaltarla"
+			/>
+			<svg viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true">
+				<path d="M1 5.4 C 30 4.6, 50 6.6, 70 5.2 S 92 5, 99 5.6" />
 			</svg>
 		</label>
 		{#if bad}<p class="error" role="alert">{bad}</p>{/if}
@@ -326,6 +375,12 @@
 		font-weight: 400;
 		color: var(--ink);
 	}
+	.nth {
+		margin: 0;
+		font: 0.95rem var(--display-sc);
+		letter-spacing: 0.12em;
+		color: var(--ink-faint);
+	}
 	.notice {
 		margin: 0;
 		font: italic 1rem var(--display);
@@ -412,6 +467,20 @@
 		margin: 0;
 		font: italic 1.02rem var(--display);
 		color: var(--ink-faint);
+	}
+	.phrase {
+		display: block;
+		width: 100%;
+		border: 0;
+		background: none;
+		font: italic 1.15rem var(--display);
+		color: var(--ink);
+		padding: 0.3rem 0;
+		outline: none;
+	}
+	.phrase::placeholder {
+		color: var(--ink-faint);
+		opacity: 0.7;
 	}
 	textarea.mono {
 		font: 0.85rem/1.5 var(--mono);

@@ -22,11 +22,11 @@ from universe import UNIVERSES, load  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 
 RINGS = [  # name, short description (Spanish, shown to visitors)
-    ("el centro", "Lo más previsible: fórmulas, repeticiones."),
-    ("los barrios", "Páginas de novela típicas: donde aterriza el paseo."),
-    ("las afueras", "Páginas raras: nombres, giros extraños, otras lenguas."),
-    ("los confines", "Fragmentos y ruido mezclado con palabras."),
-    ("el vacío", "Ruido puro: la biblioteca de Basile."),
+    ("El Centro", "Lo más previsible: fórmulas, repeticiones."),
+    ("Los Barrios", "Páginas de novela típicas: donde aterriza el paseo."),
+    ("Las Afueras", "Páginas raras: nombres, giros extraños, otras lenguas."),
+    ("Los Confines", "Fragmentos y ruido mezclado con palabras."),
+    ("El Vacío", "Ruido puro: la biblioteca de Basile."),
 ]
 
 

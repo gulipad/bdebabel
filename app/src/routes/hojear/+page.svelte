@@ -90,7 +90,7 @@
 				{/each}
 				<circle class="dot" cx="60" cy="60" r="3" />
 			</svg>
-			<InkLink onclick={() => go('centre')}>El centro</InkLink>
+			<InkLink onclick={() => go('centre')}>El Centro</InkLink>
 			<figcaption>La página que el bibliotecario espera más que ninguna: a 0 pasos.</figcaption>
 		</figure>
 	</div>

@@ -8,6 +8,7 @@
 	import InkLink from '#lib/ui/InkLink.svelte';
 	import Sheet from '#lib/ui/Sheet.svelte';
 	import { melt, meltAway } from '#lib/ui/melt.ts';
+	import { movedWithin } from '#lib/ui/visit.ts';
 	import type { LayoutProps } from './$types';
 
 	let { children }: LayoutProps = $props();
@@ -24,6 +25,7 @@
 	let main = $state<HTMLElement>();
 	// leaving an inner page, it melts away before the next one melts in
 	onNavigate(async (nav) => {
+		movedWithin();
 		const from = nav.from?.route.id;
 		// (only between pages: a choice within a page, which changes only the query, keeps it)
 		if (

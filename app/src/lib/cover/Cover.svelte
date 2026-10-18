@@ -37,6 +37,7 @@
 		type Pt
 	} from '#lib/pen/pen.ts';
 	import { livePool } from '#lib/pen/pool-gl.ts';
+	import { hasMovedWithin } from '#lib/ui/visit.ts';
 
 	let canvas: HTMLCanvasElement;
 
@@ -72,6 +73,10 @@
 		{ name: 'Hojear', to: '/hojear' }
 	] as const;
 	type Way = (typeof WAYS)[number]['to'];
+	/** reaching the cover from inside the city: no entrance, everything melts in at once, quickly */
+	const returning = hasMovedWithin();
+	const RETURN_MS = 1400;
+	let arriveAt = -Infinity;
 	/** taking a way: everything melts away, quickly, then the way opens */
 	const LEAVE_MS = 1100;
 	let leaveAt = Infinity,
@@ -340,7 +345,9 @@
 					deep[j * gw + i] = (video ? 0.85 : 1.05) + 0.9 * (top + (bot - top) * sy);
 				}
 			if (!still && !entered) {
-				wear.set(deep);
+				// (coming back, only a light wear: the plan is in within the moment the lettering takes)
+				if (returning) for (let n = 0; n < deep.length; n++) wear[n] = deep[n] * 0.25;
+				else wear.set(deep);
 				deepest = deep.reduce((a, b) => Math.max(a, b), 0);
 			}
 		}
@@ -354,7 +361,10 @@
 			bandsAt = heartAt + BANDS_AFTER;
 		};
 		if (still) [clearingAt, heartAt, bandsAt] = [-Infinity, -Infinity, -Infinity];
-		else if (!entered && deepest > 0) {
+		else if (!entered && returning) {
+			arriveAt = performance.now();
+			[clearingAt, heartAt, bandsAt] = [-Infinity, -Infinity, arriveAt + RETURN_MS + 600];
+		} else if (!entered && deepest > 0) {
 			melting = deepest;
 			[clearingAt, heartAt, bandsAt] = [Infinity, Infinity, Infinity];
 		} else if (!entered || melting > 0) lettersFrom(performance.now());
@@ -836,16 +846,27 @@
 			wearAway(now);
 
 			// the clearing's lines, streaming in once the plan is drawn, untouched by the wear: multiplied on top
-			const heartLeft = left(now);
+			// coming back, the heart and the lines melt in together with the plan, in the same moment
+			const arrived = Math.min(1, ((now - arriveAt) / RETURN_MS) * 1.33),
+				heartLeft = Math.min(left(now), arrived);
 			if (live) {
 				live.draw(drift(now));
 				inkThrough(heart, now - heartAt, live, heartTouch, [hrect.x, hrect.y], heartLeft);
 			} else inkThrough(heart, now - heartAt, heartInk, heartTouch, [0, 0], heartLeft);
-			inkThrough(clearing, now - clearingAt, innerInk, lineTouch, [0, 0], left(now));
+			inkThrough(
+				clearing,
+				now - clearingAt,
+				innerInk,
+				lineTouch,
+				[0, 0],
+				Math.min(left(now), arrived)
+			);
 			// the ways melt in as the title finishes
 			const wi = leaving
 				? Math.min(waysIn, 1 - Math.min(1, (now - leaveAt) / (outGoes * 0.6)))
-				: Math.min(1, Math.max(0, (now - heartAt - WAYS_AFTER) / WAYS_MS));
+				: arriveAt > -Infinity
+					? Math.min(1, Math.max(0, (now - arriveAt) / RETURN_MS))
+					: Math.min(1, Math.max(0, (now - heartAt - WAYS_AFTER) / WAYS_MS));
 			if (wi !== waysIn) waysIn = wi;
 			// once everything has melted away, the way opens
 			if (leaving && now - leaveAt >= outGoes) {

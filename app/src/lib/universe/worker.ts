@@ -164,7 +164,7 @@ const bitsOf = (n: bigint) => (n === 0n ? 0 : n.toString(2).length);
 
 function ringOf(bits: number): string {
 	for (const r of need().rings.rings) if (r.until === null || bits <= r.until) return r.name;
-	return 'el vacío';
+	return 'El Vacío';
 }
 
 /** The page at a number, under its canonical (shortest) address. */
