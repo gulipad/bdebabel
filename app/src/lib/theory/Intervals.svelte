@@ -5,6 +5,7 @@
 	 * on. Each choice costs −log₂ p bits. Probabilities here are made up to show the idea, not the model's.
 	 */
 	import { seen } from '#lib/ui/seen.ts';
+	import InkLink from '#lib/ui/InkLink.svelte';
 	import Log from './Log.svelte';
 
 	const LEVELS: { seg: [string, number][]; pick: number }[] = [
@@ -82,8 +83,19 @@
 	);
 	const sentence = $derived(words.join(' ').replace(' .', '.').replace(' ,', ','));
 
+	/** it can be paused where it is, and started again from the first word */
+	let paused = $state(false),
+		runs = $state(0);
+	function restart() {
+		level = 0;
+		phase = 'show';
+		paused = false;
+		runs++;
+	}
+
 	$effect(() => {
-		if (!on) return;
+		if (!on || paused) return;
+		void runs;
 		let t = 0;
 		const later = (ms: number, f: () => void) => (t = window.setTimeout(f, ms));
 		const run = () => {
@@ -161,6 +173,10 @@
 			<line x1="0" x2="0" y1="8" y2="50" />
 		</g>
 	</svg>
+	<div class="controls">
+		<InkLink small onclick={() => (paused = !paused)}>{paused ? '▸ Seguir' : '❚❚ Parar'}</InkLink>
+		<InkLink small onclick={restart}>↺ Reiniciar</InkLink>
+	</div>
 	<figcaption>
 		La dirección es un punto de esa línea, y cada palabra es la rodaja en la que cae. Cada palabra
 		cuesta
@@ -239,6 +255,12 @@
 	.pin line {
 		stroke: var(--madder);
 		stroke-width: 1.2;
+	}
+	.controls {
+		display: flex;
+		justify-content: center;
+		gap: 1.2rem;
+		margin-top: 0.4rem;
 	}
 	figcaption {
 		font: italic 1.02rem var(--display);

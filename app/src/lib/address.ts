@@ -38,6 +38,8 @@ export const WALLS = 4,
 	SHELVES = 5,
 	VOLUMES = 32,
 	PAGES = 410;
+/** The characters on a page: no sentence longer than this can be on one. */
+export const PAGE_CHARS = 3200;
 
 /** Spanish thousands separator, as in "2.282 pasos". */
 const ES = new Intl.NumberFormat('es-ES', { useGrouping: 'always' });

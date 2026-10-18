@@ -110,9 +110,9 @@
 		<h2>El Bibliotecario</h2>
 		<p>
 			En esta Ciudad, entre la dirección y la página hay un Bibliotecario. Es un modelo de lenguaje
-			de 66 millones de parámetros que hemos entrenado nosotros con 83.177 páginas de novelas y
-			ensayos en español - cada una, 16 veces. Se llama librarian-1, y dado un texto calcula la
-			probabilidad de cada palabra que podría venir después.
+			de 66 millones de parámetros que hemos entrenado nosotros (Claude y yo) con 83.177 páginas de
+			novelas y ensayos en español - cada una, 16 veces. Se llama librarian-1, y dado un texto
+			calcula la probabilidad de cada palabra que podría venir después.
 		</p>
 		<p>
 			El Bibliotecario escribe como si tirara un dado en cada palabra, un dado trucado con esas

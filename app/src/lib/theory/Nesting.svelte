@@ -6,15 +6,19 @@
 	 */
 	import { steps } from '#lib/address.ts';
 	import { seen } from '#lib/ui/seen.ts';
+	import InkLink from '#lib/ui/InkLink.svelte';
 	import Log from './Log.svelte';
 
 	const NEED = 4683,
 		LAST = Math.ceil((NEED - 15) / 80); // 59
 	const exp = (n: number) => 80 * n + 15;
 
+	/** it plays the first few universes on its own, then waits to be asked for the rest */
+	const FIRST = 5;
 	let on = $state(false),
 		level = $state(1),
-		zooming = $state(false);
+		zooming = $state(false),
+		until = $state(FIRST);
 
 	/** the atoms of a universe: dots scattered in a circle, one of them the one we zoom into */
 	const atoms = (n: number) => {
@@ -29,16 +33,10 @@
 	const target = (n: number) => atoms(n)[n % 70];
 
 	$effect(() => {
-		if (!on) return;
+		if (!on || level >= until) return;
 		let t = 0;
 		const step = () => {
-			if (level >= LAST) {
-				t = window.setTimeout(() => {
-					level = 1;
-					step();
-				}, 4500);
-				return;
-			}
+			if (level >= until) return;
 			// slow at first, then faster and faster, as the exponents run away
 			const ms = Math.max(140, 900 * Math.pow(0.9, level));
 			zooming = true;
@@ -48,9 +46,19 @@
 				t = window.setTimeout(step, Math.max(60, ms * 0.35));
 			}, ms);
 		};
-		t = window.setTimeout(step, 900);
+		t = window.setTimeout(step, level === 1 ? 900 : 200);
 		return () => clearTimeout(t);
 	});
+	const playing = $derived(on && level < until);
+	function play() {
+		if (level >= LAST) level = 1;
+		until = LAST;
+	}
+	/** stops at the universe it is in */
+	function stop() {
+		until = level;
+		zooming = false;
+	}
 
 	const fits = $derived(exp(level) >= NEED);
 	const zoom = $derived.by(() => {
@@ -89,6 +97,17 @@
 				{fits ? 'Ya cabe la Biblioteca.' : 'La Biblioteca necesita 10'}{#if !fits}<sup>4.683</sup
 					>{/if}
 			</p>
+			{#if on}
+				<div class="play">
+					{#if playing}
+						<InkLink small onclick={stop}>❚❚ Parar</InkLink>
+					{:else}
+						<InkLink small onclick={play}
+							>{level >= LAST ? '↺ Otra vez' : `▸ Seguir hasta el universo ${LAST}`}</InkLink
+						>
+					{/if}
+				</div>
+			{/if}
 		</div>
 	</div>
 	<figcaption>
@@ -164,6 +183,9 @@
 		font: italic 1.05rem var(--display);
 		color: var(--ink-faint);
 		margin-top: 0.6rem !important;
+	}
+	.play {
+		margin: 0.8rem 0 0 -0.35em;
 	}
 	.need.fits {
 		color: var(--madder);

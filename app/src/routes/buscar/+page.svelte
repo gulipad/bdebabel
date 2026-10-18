@@ -8,6 +8,7 @@
 	import { page as route } from '$app/state';
 	import Page from '#lib/components/Page.svelte';
 	import { withPhrase } from '#lib/browse/links.ts';
+	import { PAGE_CHARS, steps } from '#lib/address.ts';
 	import InkLink from '#lib/ui/InkLink.svelte';
 	import { enterSubmits } from '#lib/ui/keys.ts';
 	import { melt } from '#lib/ui/melt.ts';
@@ -41,6 +42,11 @@
 		result = null;
 		error = '';
 		if (!q) return;
+		const long = tooLong(q);
+		if (long) {
+			error = long;
+			return;
+		}
 		since = performance.now();
 		universe()
 			.search(q, String(n))
@@ -73,14 +79,20 @@
 	/** the box above a result starts empty, and empties again once its sentence is searched */
 	let another = $state('');
 	function searchAnother() {
-		if (!another.trim()) return;
+		if (!another.trim() || tooLong(another)) return;
 		search(another);
 		another = '';
 	}
 
+	/** what a sentence too long for any page is told (null if it fits) */
+	const tooLong = (t: string) =>
+		t.trim().length > PAGE_CHARS
+			? `Una página tiene ${steps(PAGE_CHARS)} caracteres, y tu frase tiene ${steps(t.trim().length)}: no cabe en ninguna.`
+			: null;
+
 	function search(q = draft, n = 0) {
 		const text = q.trim();
-		if (!text || (text === query && n === nth)) return;
+		if (!text || tooLong(text) || (text === query && n === nth)) return;
 		const params = new URLSearchParams(n ? { q: text, n: String(n) } : { q: text });
 		// eslint-disable-next-line svelte/no-navigation-without-resolve -- the route is resolved, then given its query
 		goto(`${resolve('/buscar')}?${params}`);
@@ -88,6 +100,15 @@
 </script>
 
 <svelte:head><title>{query ? `«${query}»` : 'Buscar'} · La Biblioteca de Babel</title></svelte:head>
+
+{#snippet room(t: string)}
+	<!-- how much of a page the sentence takes, once it gets near a page's worth; and when it can't fit -->
+	{#if tooLong(t)}
+		<p class="error" role="alert">{tooLong(t)}</p>
+	{:else if t.trim().length > PAGE_CHARS * 0.85}
+		<p class="count">{steps(t.trim().length)} de {steps(PAGE_CHARS)} caracteres</p>
+	{/if}
+{/snippet}
 
 <section class="buscar">
 	<!-- once a sentence is searched, its page is what matters: the form steps aside -->
@@ -109,13 +130,13 @@
 				<textarea
 					bind:value={draft}
 					rows="2"
-					maxlength="600"
 					placeholder="«Tenía miedo de la oscuridad»"
 					onkeydown={(e) => enterSubmits(e, () => search())}></textarea>
 				<svg viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true">
 					<path d="M1 6 C 20 4.4, 44 7.2, 64 5.4 S 90 4.6, 99 5.6" />
 				</svg>
 			</label>
+			{@render room(draft)}
 			<div class="row">
 				<InkLink onclick={() => search()}>Buscar en la Biblioteca</InkLink>
 			</div>
@@ -147,6 +168,7 @@
 				<svg viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true">
 					<path d="M1 6 C 20 4.4, 44 7.2, 64 5.4 S 90 4.6, 99 5.6" />
 				</svg>
+				{@render room(another)}
 			</label>
 			<InkLink onclick={searchAnother}>Buscar</InkLink>
 		</form>
@@ -313,6 +335,12 @@
 	.notice b {
 		font-style: normal;
 		color: var(--ink);
+	}
+	.count {
+		margin: 0;
+		font: 0.78rem var(--mono);
+		color: var(--ink-faint);
+		text-align: right;
 	}
 	.anew {
 		display: flex;
