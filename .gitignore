@@ -1,10 +1,13 @@
 node_modules/
 corpus/
-model/
+/model/
 lab/out/
 lab/models/
 data/
-lab/universes/*/model/
+lab/universes/*/model/*
+# the released universe keeps its small model files in git (the city is built from them); the weights live on Hugging Face
+!lab/universes/babel-1/model/*
+lab/universes/babel-1/model/model.bin
 __pycache__/
 lab/adapters/
 remote/*.tgz
