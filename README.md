@@ -86,25 +86,25 @@ before it writes a single word.
 
 ## Repository
 
-| Folder                                            | What's in it                                                       |
-| ------------------------------------------------- | ------------------------------------------------------------------ |
-| [`app/`](app)                                     | The city: SvelteKit, every page computed on the reader's device    |
-| [`lab/`](lab)                                     | Training, the integer engine, evaluations and the frozen universes |
-| [`lab/universes/babel-1/`](lab/universes/babel-1) | The universe the city reads (the model itself isn't in git)        |
-| [`docs/article-notes.md`](docs/article-notes.md)  | The maths, the measurements and every experiment, in detail        |
-| [`deploy/`](deploy)                               | Scripts to deploy the city to Vercel and fetch a universe          |
+| Folder                                            | What's in it                                                                                            |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| [`app/`](app)                                     | The city: SvelteKit, every page computed on the reader's device                                         |
+| [`lab/`](lab)                                     | Training, the integer engine, evaluations and the frozen universes                                      |
+| [`lab/universes/babel-1/`](lab/universes/babel-1) | The universe the city reads (its weights are on [Hugging Face](https://huggingface.co/Gulipad/babel-1)) |
+| [`docs/article-notes.md`](docs/article-notes.md)  | The maths, the measurements and every experiment, in detail                                             |
+| [`deploy/`](deploy)                               | `fetch-universe.sh`, to bring a universe's weights back for local work                                  |
 
 ## Running it
 
 ```sh
-deploy/fetch-universe.sh babel-1     # downloads the model (77 MB) and checks its hashes
+deploy/fetch-universe.sh babel-1     # downloads the weights (77 MB) from Hugging Face and checks them
 cd app
 pnpm install
 pnpm dev                             # http://localhost:5173
 ```
 
-You need Node 22. To deploy, `deploy/deploy-app.sh babel-1` builds the city, puts the universe next to it
-and ships both to Vercel as static files.
+You need Node 22. Every push to `main` deploys the city to Vercel ([`vercel.json`](vercel.json)): it builds the
+app, puts the universe next to it, and the browser fetches the weights from Hugging Face.
 
 ## Thanks
 
