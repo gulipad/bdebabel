@@ -7,8 +7,8 @@
 	 * giving its shelves back, while others ink in elsewhere. The pointer wears the plan's ink away near it, and
 	 * the plan is drawn back after it. The sheet arrives worn away and the plan melts in in patches, with no
 	 * lettering yet; as it is nearly in, the clearing's lines start to stream, and once it is in, the heart of the
-	 * clearing melts in (a dark pool of ink with the title left unstained in it); a little later the galleries'
-	 * bands begin, and the ways into the city appear under the title.
+	 * clearing melts in (a dark pool of ink with the title left unstained in it; on a phone, the title alone); a
+	 * little later the galleries' bands begin, and the ways into the city appear under the title.
 	 * Within the clearing the pointer is gentler: it takes single words from its lines, and only a little from
 	 * the heart.
 	 */
@@ -91,7 +91,9 @@
 	}
 	/** where the ways sit (css px: the board's centre, and px per board unit), and how far melted in (0..1) */
 	let ways = $state({ x: 0, y: 0, k: 1 }),
-		waysIn = $state(0);
+		waysIn = $state(0),
+		/** the clean cover: the title alone in the heart, without its pool of ink */
+		plain = $state(false);
 
 	/** the pointer, in css px */
 	const pointer = { x: 0, y: 0, in: false, onWays: false };
@@ -151,6 +153,8 @@
 		const at = ([x, y]: Pt): Pt => [ox + x * k, oy + y * k];
 		// #video: for recording a sneak peek; the title alone in the heart, no ways, and a sign when it is ready
 		const video = location.hash.includes('video');
+		// on a phone or a tablet (or with #limpio), the clean cover: the title written in ink alone, no pool
+		plain = handheld() || location.hash.includes('limpio');
 		const scene = planoScene({ ways: !video });
 		const rnd = seeded(1941);
 		const paper = makePaper(w, h, { scale: dpr });
@@ -570,21 +574,23 @@
 			hr = scene.centre.r * k;
 		// it melts in from the middle out, as one drop reaching the whole of it
 		const heart = strandOf([{ x: hx, y: hy, r: hr * 1.6, due: 0, dur: HEART_MS }]);
-		// floods outward from the middle with a wandering front: broad lobes, finer inlets, a hint of the fibres
-		heart.flood = (x, y) => {
-			const u = k * FLOOD_LOBE;
-			return (
-				0.02 +
-				0.82 * Math.min(1, Math.hypot(x - hx, y - hy) / (hr * 1.12)) +
-				0.3 * (noise(x / u, y / u, 31) - 0.5) +
-				0.12 * (noise((x * 3) / u, (y * 3) / u, 37) - 0.5) +
-				0.05 *
-					(paper.grain[
-						Math.min(h - 1, Math.max(0, y | 0)) * w + Math.min(w - 1, Math.max(0, x | 0))
-					] -
-						0.5)
-			);
-		};
+		// the pool floods outward from the middle with a wandering front: broad lobes, finer inlets, a hint of
+		// the fibres (the title alone melts in like any lettering)
+		if (!plain)
+			heart.flood = (x, y) => {
+				const u = k * FLOOD_LOBE;
+				return (
+					0.02 +
+					0.82 * Math.min(1, Math.hypot(x - hx, y - hy) / (hr * 1.12)) +
+					0.3 * (noise(x / u, y / u, 31) - 0.5) +
+					0.12 * (noise((x * 3) / u, (y * 3) / u, 37) - 0.5) +
+					0.05 *
+						(paper.grain[
+							Math.min(h - 1, Math.max(0, y | 0)) * w + Math.min(w - 1, Math.max(0, x | 0))
+						] -
+							0.5)
+				);
+			};
 		// each sheet of ink is only needed where its strands are: the bands' galleries, the clearing, its heart
 		const rectOf = (st: Strand) => ({ x: st.x0, y: st.y0, w: st.sw * 2, h: st.sh * 2 });
 		compose(
@@ -603,17 +609,28 @@
 			const a = ((still ? 0 : now) / CREEP_MS) * Math.PI * 2;
 			return [DRIFT * (1 + Math.cos(a)), DRIFT * (1 + Math.sin(a))];
 		};
-		// the heart's ink: the pool, drawn live on the GPU so it can creep (or, without it, once, still)
-		const live = livePool(paper, {
-			cx: hx,
-			cy: hy,
-			r: hr,
-			unit: k,
-			reserve: titled.c,
-			rect: hrect,
-			ink: IRON_GALL
-		});
-		if (!live) {
+		// the heart's ink: the title alone; or the pool, drawn live on the GPU so it can creep (or, without it,
+		// once, still)
+		const live = plain
+			? null
+			: livePool(paper, {
+					cx: hx,
+					cy: hy,
+					r: hr,
+					unit: k,
+					reserve: titled.c,
+					rect: hrect,
+					ink: IRON_GALL
+				});
+		if (plain) {
+			displace(titled.c, w, h, k);
+			compose(
+				heartInk,
+				white,
+				[{ c: titled.c, ink: IRON_GALL, strength: 1.2, tooth: 0.4 }],
+				[hrect]
+			);
+		} else if (!live) {
 			const pond = inkLayer(w, h);
 			pool(pond.c, paper, { cx: hx, cy: hy, r: hr, unit: k, reserve: titled.c, drift: drift(0) });
 			compose(heartInk, white, [{ c: pond.c, ink: IRON_GALL, strength: 1, tooth: 0.5 }], [hrect]);
@@ -1066,6 +1083,7 @@
 	<nav
 		class="ways"
 		class:shown={waysIn > 0 && !location.hash.includes('video')}
+		class:plain
 		class:melting={waysIn > 0 && waysIn < 1}
 		inert={waysIn < 1}
 		style:--x="{ways.x}px"
@@ -1112,6 +1130,10 @@
 		align-items: center;
 		gap: calc(6px * var(--k));
 		visibility: hidden;
+	}
+	/* on the clean cover there is no pool: the ways are in ink, on bare paper */
+	.ways.plain {
+		--ink: inherit;
 	}
 	.defs {
 		position: absolute;

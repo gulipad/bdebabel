@@ -128,6 +128,12 @@
 		</p>
 
 		<Intervals />
+
+		<p>
+			Por eso al hojear casi siempre sale prosa. Una dirección al azar cae casi siempre en una
+			rodaja ancha, la de una palabra que el Bibliotecario esperaba, y así palabra tras palabra. El
+			ruido sigue ahí, en rodajas finísimas, y casi nadie llega a él.
+		</p>
 	</section>
 
 	<section use:melt={{ onView: true }}>
@@ -142,8 +148,8 @@
 			En la Biblioteca de Basile no hay nada que adivinar. Cada carácter es uno de 29, igual de
 			probable, y cuesta siempre <Log of="29" minus={false} /> ≈ 4,86 bits, se espere o no. Una página
 			cuesta 3.200 × 4,86 ≈ 15.546 bits, unos 3.000 caracteres de dirección. Una página típica de esta
-			Biblioteca cuesta unos 2.300 bits, unos 390 caracteres, ocho veces menos. El ruido, en cambio, aquí
-			sale más caro que allí.
+			Biblioteca cuesta unos 2.300 bits, unos 390 caracteres, casi siete veces menos. El ruido, en cambio,
+			aquí sale más caro que allí.
 		</p>
 
 		<Lengths />
@@ -151,7 +157,8 @@
 		<p>
 			No se le puede dar un nombre corto a todo, porque no hay suficientes nombres cortos (el
 			principio del palomar). Basile reparte los nombres por igual. Nosotros damos los cortos a las
-			páginas legibles y los largos al ruido.
+			páginas legibles y los largos al ruido. El Bibliotecario no quita ninguna página, siguen
+			estando todas, sólo cambia dónde está cada una.
 		</p>
 	</section>
 
