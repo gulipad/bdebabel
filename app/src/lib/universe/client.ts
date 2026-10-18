@@ -12,6 +12,8 @@ export class Universe {
 	>();
 	private listeners = new Set<(p: Progress) => void>();
 	readonly ready: Promise<UniverseInfo>;
+	/** the universe couldn't be opened (the download or a check failed): a new one must be started to retry */
+	failed = false;
 
 	constructor(base: string, elsewhere: Record<string, string> = {}) {
 		this.worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
@@ -28,6 +30,14 @@ export class Universe {
 			else p.reject(new Error(m.error));
 		};
 		this.ready = this.ask({ type: 'init', base: new URL(base, location.href).href, elsewhere });
+		this.ready.catch(() => (this.failed = true));
+	}
+
+	/** stops the worker; whatever was still asked of it fails */
+	close() {
+		this.worker.terminate();
+		for (const p of this.pending.values()) p.reject(new Error('closed'));
+		this.pending.clear();
 	}
 
 	onProgress(fn: (p: Progress) => void): () => void {
@@ -59,15 +69,19 @@ const ELSEWHERE: Record<string, string> = MODEL ? { 'model/model.bin': MODEL } :
 const CACHE = 'ciudad-de-babel-universes';
 let shared: Universe | null = null;
 
-/** One worker for the whole app, opened on first use (which starts the model's download). */
+/** One worker for the whole app, opened on first use (which starts the model's download), and again after one fails. */
 export function universe(): Universe {
+	if (shared?.failed) {
+		shared.close();
+		shared = null;
+	}
 	shared ??= new Universe(BASE, ELSEWHERE);
 	return shared;
 }
 
 /** Whether the worker is open already, or the model came on an earlier visit and waits in the cache. */
 export async function arrived(): Promise<boolean> {
-	if (shared) return true;
+	if (shared && !shared.failed) return true;
 	try {
 		const model = MODEL ?? new URL('model/model.bin', new URL(BASE, location.href)).href;
 		return !!(await (await caches.open(CACHE)).match(model));

@@ -46,13 +46,25 @@ async function sha256(bytes: ArrayBuffer | Uint8Array): Promise<string> {
 	return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+/**
+ * The browser's cache for the universe's files, or null where there is none to have: it is only a saving, so
+ * private windows (where opening it can throw) and full storage just mean downloading again next time.
+ */
+async function openCache(): Promise<Cache | null> {
+	try {
+		return 'caches' in self ? await caches.open(CACHE) : null;
+	} catch {
+		return null;
+	}
+}
+
 /** Fetches a file of the universe (from the cache when we have it), streaming progress for large ones. */
 async function fetchBytes(
 	url: string,
 	onProgress?: (loaded: number, total: number) => void
 ): Promise<Uint8Array> {
-	const cache = 'caches' in self ? await caches.open(CACHE) : null;
-	let res = (await cache?.match(url)) ?? null;
+	const cache = await openCache();
+	let res = (await cache?.match(url).catch(() => undefined)) ?? null;
 	const cached = !!res;
 	if (!res) {
 		res = await fetch(url);
@@ -78,7 +90,10 @@ async function fetchBytes(
 			o += p.length;
 		}
 	} else out = new Uint8Array(await res.arrayBuffer());
-	if (!cached) await cache?.put(url, new Response(out as BufferSource, { headers: res.headers }));
+	if (!cached)
+		await cache?.put(url, new Response(out as BufferSource, { headers: res.headers })).catch(() => {
+			// not kept (storage full or refused): the bytes are here all the same, and checked below
+		});
 	return out;
 }
 
@@ -95,7 +110,7 @@ async function verified(
 	const bytes = await fetchBytes(url, onProgress);
 	const got = await sha256(bytes);
 	if (got !== expected) {
-		if ('caches' in self) await (await caches.open(CACHE)).delete(url);
+		await (await openCache())?.delete(url).catch(() => false);
 		throw new Error(
 			`${rel} does not match the universe's manifest (expected ${expected.slice(0, 12)}…, got ${got.slice(0, 12)}…)`
 		);

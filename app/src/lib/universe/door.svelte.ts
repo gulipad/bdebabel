@@ -15,7 +15,8 @@ class Door {
 	progress = $state<Progress>({ stage: 'manifest', loaded: 0, total: 0 });
 	error = $state('');
 	#waiting: { resolve: () => void; reject: (e: Error) => void } | null = null;
-	#watching = false;
+	/** the universe whose download is being shown (a new one, after one fails) */
+	#watching: ReturnType<typeof universe> | null = null;
 
 	async need(why = 'Para buscar y abrir páginas'): Promise<void> {
 		if (await arrived()) {
@@ -58,8 +59,9 @@ class Door {
 
 	#start() {
 		const u = universe();
-		if (!this.#watching) {
-			this.#watching = true;
+		if (this.#watching !== u) {
+			this.#watching = u;
+			this.error = '';
 			const off = u.onProgress((p) => (this.progress = p));
 			u.ready.then(
 				() => {
