@@ -74,7 +74,8 @@ button:disabled {
 	cursor: progress;
 }
 
-@media (prefers-reduced-motion: reduce) {
+/* reduced motion stills the city on a desktop; a phone or a tablet keeps its ink moving (see ui/melt.ts) */
+@media (prefers-reduced-motion: reduce) and (hover: hover) {
 	* {
 		animation-duration: 0.01ms !important;
 		transition-duration: 0.01ms !important;

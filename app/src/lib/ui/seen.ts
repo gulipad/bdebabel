@@ -1,6 +1,8 @@
+import { handheld } from './device.ts';
+
 /** An action: calls `on(true)` the first time the element comes into view (and stops watching). */
 export function seen(node: Element, on: (v: boolean) => void) {
-	if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+	if (matchMedia('(prefers-reduced-motion: reduce)').matches && !handheld()) {
 		on(true);
 		return {};
 	}

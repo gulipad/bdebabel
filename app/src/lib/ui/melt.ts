@@ -3,10 +3,16 @@
  * in blotchy patches, through an SVG filter whose threshold rises with a noise field. `melt` is an action that
  * melts an element in when it mounts (or comes into view); `meltAway` melts one out and resolves when it's gone.
  */
+import { handheld } from './device.ts';
+
 const NS = 'http://www.w3.org/2000/svg';
 let made = 0;
 
-const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+/**
+ * reduced motion keeps things still on a desktop; on a phone or a tablet the melts run anyway, as the cover's
+ * leaving always did: they are ink dissolving in place, nothing moves
+ */
+const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches && !handheld();
 
 /**
  * The part of an element the filter works on: what is on screen (from the element's top if it is still below),

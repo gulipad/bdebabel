@@ -92,7 +92,7 @@
 		stroke-linecap: round;
 		vector-effect: non-scaling-stroke;
 	}
-	@media (prefers-reduced-motion: reduce) {
+	@media (prefers-reduced-motion: reduce) and (hover: hover) {
 		.way,
 		svg {
 			transition: none;

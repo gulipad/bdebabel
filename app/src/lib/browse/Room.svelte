@@ -202,7 +202,7 @@
 	.wall.current .name {
 		fill: var(--madder);
 	}
-	@media (prefers-reduced-motion: reduce) {
+	@media (prefers-reduced-motion: reduce) and (hover: hover) {
 		.draw {
 			animation: none;
 			stroke-dashoffset: 0;

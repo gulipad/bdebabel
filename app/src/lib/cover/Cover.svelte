@@ -37,6 +37,7 @@
 		type Pt
 	} from '#lib/pen/pen.ts';
 	import { livePool } from '#lib/pen/pool-gl.ts';
+	import { handheld } from '#lib/ui/device.ts';
 	import { meltAway, meltIn } from '#lib/ui/melt.ts';
 	import { hasMovedWithin } from '#lib/ui/visit.ts';
 
@@ -1022,8 +1023,9 @@
 			}, 220);
 		};
 		fonts = Promise.all(PLANO_FONTS.map((f) => document.fonts.load(f).catch(() => null)));
-		// with reduced motion the lettering is simply there, and stays
-		still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+		// with reduced motion the lettering is simply there, and stays (on a desktop: a phone or a tablet melts
+		// it in anyway, as it always melted away)
+		still = matchMedia('(prefers-reduced-motion: reduce)').matches && !handheld();
 		render();
 		const move = (e: PointerEvent) => {
 			if (e.pointerType === 'touch') return;
@@ -1168,7 +1170,7 @@
 	.ways button:focus-visible svg {
 		clip-path: inset(-50% 0 -50% 0);
 	}
-	@media (prefers-reduced-motion: reduce) {
+	@media (prefers-reduced-motion: reduce) and (hover: hover) {
 		.ways button,
 		.ways svg {
 			transition: none;
