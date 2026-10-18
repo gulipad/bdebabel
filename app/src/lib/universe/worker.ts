@@ -82,16 +82,20 @@ async function fetchBytes(
 	return out;
 }
 
+/** files of the universe served from somewhere else (the model, from Hugging Face): path → URL */
+let elsewhere: Record<string, string> = {};
+
 async function verified(
 	base: string,
 	rel: string,
 	expected: string,
 	onProgress?: (l: number, t: number) => void
 ) {
-	const bytes = await fetchBytes(new URL(rel, base).href, onProgress);
+	const url = elsewhere[rel] ?? new URL(rel, base).href;
+	const bytes = await fetchBytes(url, onProgress);
 	const got = await sha256(bytes);
 	if (got !== expected) {
-		if ('caches' in self) await (await caches.open(CACHE)).delete(new URL(rel, base).href);
+		if ('caches' in self) await (await caches.open(CACHE)).delete(url);
 		throw new Error(
 			`${rel} does not match the universe's manifest (expected ${expected.slice(0, 12)}…, got ${got.slice(0, 12)}…)`
 		);
@@ -184,6 +188,7 @@ async function pageAt(n: bigint): Promise<PageResult> {
 async function handle(req: Request): Promise<unknown> {
 	switch (req.type) {
 		case 'init':
+			elsewhere = req.elsewhere ?? {};
 			return init(req.base);
 		case 'center':
 			return pageAt(0n);

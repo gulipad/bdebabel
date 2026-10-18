@@ -13,7 +13,7 @@ export class Universe {
 	private listeners = new Set<(p: Progress) => void>();
 	readonly ready: Promise<UniverseInfo>;
 
-	constructor(base: string) {
+	constructor(base: string, elsewhere: Record<string, string> = {}) {
 		this.worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
 		this.worker.onmessage = (e: MessageEvent<WorkerMessage>) => {
 			const m = e.data;
@@ -27,7 +27,7 @@ export class Universe {
 			if (m.ok) p.resolve(m.result);
 			else p.reject(new Error(m.error));
 		};
-		this.ready = this.ask({ type: 'init', base: new URL(base, location.href).href });
+		this.ready = this.ask({ type: 'init', base: new URL(base, location.href).href, elsewhere });
 	}
 
 	onProgress(fn: (p: Progress) => void): () => void {
@@ -52,13 +52,16 @@ export class Universe {
 }
 
 const BASE = import.meta.env.VITE_UNIVERSE_BASE ?? '/universe/babel-1/';
+/** the model may live elsewhere (Hugging Face, in production): its URL, pinned to one commit */
+const MODEL = import.meta.env.VITE_MODEL_URL as string | undefined;
+const ELSEWHERE: Record<string, string> = MODEL ? { 'model/model.bin': MODEL } : {};
 /** where the worker keeps the universe's files (worker.ts) */
 const CACHE = 'ciudad-de-babel-universes';
 let shared: Universe | null = null;
 
 /** One worker for the whole app, opened on first use (which starts the model's download). */
 export function universe(): Universe {
-	shared ??= new Universe(BASE);
+	shared ??= new Universe(BASE, ELSEWHERE);
 	return shared;
 }
 
@@ -66,7 +69,7 @@ export function universe(): Universe {
 export async function arrived(): Promise<boolean> {
 	if (shared) return true;
 	try {
-		const model = new URL('model/model.bin', new URL(BASE, location.href)).href;
+		const model = MODEL ?? new URL('model/model.bin', new URL(BASE, location.href)).href;
 		return !!(await (await caches.open(CACHE)).match(model));
 	} catch {
 		return false;

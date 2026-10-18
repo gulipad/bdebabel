@@ -35,7 +35,7 @@ export interface RoomResult {
 }
 
 export type Request =
-	| { type: 'init'; base: string }
+	| { type: 'init'; base: string; elsewhere?: Record<string, string> }
 	| { type: 'open'; address: string }
 	| { type: 'random'; seed: string }
 	| { type: 'room'; seed: string }

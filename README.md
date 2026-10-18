@@ -92,7 +92,7 @@ before it writes a single word.
 | [`lab/`](lab)                                     | Training, the integer engine, evaluations and the frozen universes |
 | [`lab/universes/babel-1/`](lab/universes/babel-1) | The universe the city reads (the model itself isn't in git)        |
 | [`docs/article-notes.md`](docs/article-notes.md)  | The maths, the measurements and every experiment, in detail        |
-| [`deploy/`](deploy)                               | Scripts to publish a universe to R2 and the city to Cloudflare     |
+| [`deploy/`](deploy)                               | Scripts to deploy the city to Vercel and fetch a universe          |
 
 ## Running it
 
@@ -103,8 +103,8 @@ pnpm install
 pnpm dev                             # http://localhost:5173
 ```
 
-You need Node 22. To deploy, `deploy/publish-universe.sh babel-1` uploads a universe to the R2 bucket
-and `deploy/deploy-app.sh` builds and ships the city.
+You need Node 22. To deploy, `deploy/deploy-app.sh babel-1` builds the city, puts the universe next to it
+and ships both to Vercel as static files.
 
 ## Thanks
 
