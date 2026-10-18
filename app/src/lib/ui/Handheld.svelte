@@ -10,8 +10,8 @@
 <section class="notice">
 	<h1>La Biblioteca de Babel</h1>
 	<p>
-		Esta biblioteca está optimizada para ordenador. Utiliza procesamiento gráfico que puede ser lento
-		en dispositivos móviles.
+		Esta biblioteca está optimizada para ordenador. Utiliza procesamiento gráfico que puede ser
+		lento en dispositivos móviles.
 	</p>
 	<InkLink onclick={oncontinue}>Entrar igualmente</InkLink>
 </section>
