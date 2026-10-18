@@ -22,7 +22,7 @@ function hash(i: number, j: number, seed: number) {
 }
 
 /** Value noise in [0, 1). */
-function noise(x: number, y: number, seed: number) {
+export function noise(x: number, y: number, seed: number) {
 	const i = Math.floor(x),
 		j = Math.floor(y),
 		fx = x - i,
@@ -317,26 +317,33 @@ export function displace(
 	w: number,
 	h: number,
 	unit: number,
-	{ frequency = 0.09, scale = 1.6, seed = 21 } = {}
+	{ frequency = 0.09, scale = 1.6, seed = 21 } = {},
+	/** only this part of the layer, when given (ink just outside it is not drawn in) */
+	rect?: { x: number; y: number; w: number; h: number }
 ) {
-	const src = c.getImageData(0, 0, w, h);
-	const out = c.createImageData(w, h);
+	const X0 = rect ? Math.max(0, Math.floor(rect.x)) : 0,
+		Y0 = rect ? Math.max(0, Math.floor(rect.y)) : 0,
+		rw = (rect ? Math.min(w, Math.ceil(rect.x + rect.w)) : w) - X0,
+		rh = (rect ? Math.min(h, Math.ceil(rect.y + rect.h)) : h) - Y0;
+	if (rw <= 0 || rh <= 0) return;
+	const src = c.getImageData(X0, Y0, rw, rh);
+	const out = c.createImageData(rw, rh);
 	const s = src.data,
 		d = out.data;
 	const { field, gw } = offsets(w, h, unit, frequency, scale, seed);
 	// only tiles with ink near them need the work (ink layers are mostly empty); a pixel moves less than a tile
-	const tw = Math.ceil(w / TILE),
-		th = Math.ceil(h / TILE),
+	const tw = Math.ceil(rw / TILE),
+		th = Math.ceil(rh / TILE),
 		inked = new Uint8Array(tw * th);
-	for (let y = 0; y < h; y++)
-		for (let x = 0, row = y * w; x < w; x++)
+	for (let y = 0; y < rh; y++)
+		for (let x = 0, row = y * rw; x < rw; x++)
 			if (s[(row + x) * 4 + 3]) {
 				inked[Math.floor(y / TILE) * tw + Math.floor(x / TILE)] = 1;
 				x = (Math.floor(x / TILE) + 1) * TILE - 1;
 			}
 	// only coverage matters on an ink layer: sample it bilinearly, so anti-aliased edges stay smooth
 	const A = (x: number, y: number) =>
-		x < 0 || y < 0 || x >= w || y >= h ? 0 : s[(y * w + x) * 4 + 3];
+		x < 0 || y < 0 || x >= rw || y >= rh ? 0 : s[(y * rw + x) * 4 + 3];
 	for (let ty = 0; ty < th; ty++)
 		for (let tx = 0; tx < tw; tx++) {
 			let near = 0;
@@ -344,11 +351,11 @@ export function displace(
 				for (let i = Math.max(0, tx - 1); i <= Math.min(tw - 1, tx + 1); i++)
 					near |= inked[j * tw + i];
 			if (!near) continue;
-			for (let y = ty * TILE; y < Math.min(h, (ty + 1) * TILE); y++)
-				for (let x = tx * TILE; x < Math.min(w, (tx + 1) * TILE); x++) {
-					// the offset, interpolated from the coarse field
-					const gx = x / STEP,
-						gy = y / STEP,
+			for (let y = ty * TILE; y < Math.min(rh, (ty + 1) * TILE); y++)
+				for (let x = tx * TILE; x < Math.min(rw, (tx + 1) * TILE); x++) {
+					// the offset, interpolated from the coarse field (which is laid over the whole layer)
+					const gx = (X0 + x) / STEP,
+						gy = (Y0 + y) / STEP,
 						i = Math.floor(gx),
 						j = Math.floor(gy),
 						fx = gx - i,
@@ -367,12 +374,12 @@ export function displace(
 						y0 = Math.floor(sy),
 						ax = sx - x0,
 						ay = sy - y0;
-					d[(y * w + x) * 4 + 3] =
+					d[(y * rw + x) * 4 + 3] =
 						(A(x0, y0) * (1 - ax) + A(x0 + 1, y0) * ax) * (1 - ay) +
 						(A(x0, y0 + 1) * (1 - ax) + A(x0 + 1, y0 + 1) * ax) * ay;
 				}
 		}
-	c.putImageData(out, 0, 0);
+	c.putImageData(out, X0, Y0);
 }
 
 const TILE = 32, // px per tile when skipping empty parts of a layer

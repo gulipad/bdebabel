@@ -16,6 +16,7 @@ import type {
 import type {
 	PageResult,
 	Request,
+	RoomResult,
 	SearchPage,
 	Stage,
 	UniverseInfo,
@@ -156,6 +157,9 @@ function need(): Open {
 	return universe;
 }
 
+/** the size of a random room's numbers, in bits */
+const ROOM_BITS = 4096;
+
 const bitsOf = (n: bigint) => (n === 0n ? 0 : n.toString(2).length);
 
 function ringOf(bits: number): string {
@@ -185,11 +189,22 @@ async function handle(req: Request): Promise<unknown> {
 			return pageAt(0n);
 		case 'random':
 			return pageAt(need().codec.randomAddress(req.seed, need().library.PAGE));
+		case 'room': {
+			// a random location, without writing its page: only its hexagon is needed. Its number has ROOM_BITS,
+			// comfortably more than a page's writing uses (~2,400), so every page in the room is written in full
+			const u = need();
+			const bytes = crypto.getRandomValues(new Uint8Array(ROOM_BITS / 8));
+			bytes[0] |= 0x80;
+			const n = BigInt('0x' + Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join(''));
+			const address = await u.address.addressOf(u.manifest.id, u.key, n);
+			return { universe: u.manifest.id, hexagon: address.split(':')[1] } satisfies RoomResult;
+		}
 		case 'open': {
 			const u = need();
 			const n = await u.address.numberOf(u.manifest.id, u.key, req.address);
-			const [text] = u.library.pageDecode(n);
-			const bits = bitsOf(n);
+			const [text, left] = u.library.pageDecode(n);
+			// the page's own distance, whatever the location: the bits its writing used (its canonical length)
+			const bits = bitsOf(n) - bitsOf(left);
 			return { address: req.address, text, bits, ring: ringOf(bits) } satisfies PageResult;
 		}
 		case 'search': {

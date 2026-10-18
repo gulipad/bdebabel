@@ -3,7 +3,7 @@
 Raw material for an article about this project. Organized by theme, with the numbers we
 measured and the experiments that taught us something. Kept up to date as the project moves.
 
-Last updated: 2026-10-17. Universes: `babel-1` (our own 66M model, integer engine, runs on any device; being prepared for release) and `babel-exp-1` (the earlier experiment with stock GPT-2 Spanish, float, never released; measurements marked `babel-exp-1` come from it).
+Last updated: 2026-10-18. Universes: `babel-1` (our own 66M model, integer engine, runs on any device; being prepared for release) and `babel-exp-1` (the earlier experiment with stock GPT-2 Spanish, float, never released; measurements marked `babel-exp-1` come from it).
 
 ---
 
@@ -228,6 +228,23 @@ hexagon, or random jumps), as in Basile, where it is possible if nearly impossib
 - **A moral geography.** The content filters push erotica and gore outward, so they literally
   live in remote galleries. Completeness survives; equality doesn't. The map shows the Library's
   preferences instead of hiding them.
+
+## 7b. The geography, measured in babel-1 (2026-10-18)
+
+- **The centre of babel-1** (`babel-1:0:1:1:1:1`, 0 bits) is a dialogue that refuses itself:
+  *"—No, no, no —dijo el señor Bergeret—. Es una historia muy larga, y no me gusta."* and then, for the
+  whole page, *"—No, no es una historia muy larga."* (now and then *"muy corta"*). Bergeret and Terremondre
+  are Anatole France's characters, borrowed from the training books. The centre of a library of everything
+  is, again, a man saying no.
+- **A page's distance belongs to the page.** Opening an arbitrary location (a book picked on a shelf of a
+  random room) decodes the page from the location's number and leaves the rest of the number unused. The
+  page's distance is the bits its writing used (number length minus leftover), which is its canonical
+  address length: a page picked by hand in a random room measured 2,322 pasos, *los barrios*.
+- **Random rooms.** A room is a hexagon name, the high part of a location's number. Drawn from a full random
+  location it is ~8,600 characters long (most of the number is leftover); drawn from a 4,096-bit number it
+  is ~685 characters, and every page in it still has bits to spare (a page uses ~2,400).
+- **Search, measured in the browser:** «te quiero» found in ~8 s on a laptop, on a page 2,126 pasos from
+  the centre, mid-scene: *"—Háblame, yo te quiero; te amo, te he amado mucho."*
 
 ## 8. Shaping the Library: what the experiments taught us
 

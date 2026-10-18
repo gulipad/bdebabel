@@ -1,7 +1,7 @@
 /** Messages between the interface and the engine worker. */
 
 export interface PageResult {
-	/** the page's full address, e.g. babel-1:<hexágono>:<muro>:<anaquel>:<volumen>:<página> */
+	/** the page's full address, e.g. babel-1:<hexágono>:<muro>:<balda>:<volumen>:<página> */
 	address: string;
 	text: string;
 	/** distance from the center: the length of the page's number in bits */
@@ -27,10 +27,18 @@ export interface UniverseInfo {
 	rings: { name: string; until: number | null }[];
 }
 
+/** A room of the Library: where its pages' addresses start. */
+export interface RoomResult {
+	universe: string;
+	/** the hexagon's name, as in its pages' addresses */
+	hexagon: string;
+}
+
 export type Request =
 	| { type: 'init'; base: string }
 	| { type: 'open'; address: string }
 	| { type: 'random'; seed: string }
+	| { type: 'room'; seed: string }
 	| { type: 'search'; query: string; seed: string }
 	| { type: 'center' };
 
@@ -38,7 +46,9 @@ export type ResultOf<R extends Request> = R extends { type: 'init' }
 	? UniverseInfo
 	: R extends { type: 'search' }
 		? SearchPage
-		: PageResult;
+		: R extends { type: 'room' }
+			? RoomResult
+			: PageResult;
 
 export type Stage = 'manifest' | 'engine' | 'model' | 'verify' | 'ready';
 

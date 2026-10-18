@@ -20,6 +20,8 @@ export interface PlanoOptions {
 	shafts: number;
 	/** radius of the empty clearing at the centre (0: none) */
 	clearing: number;
+	/** whether the ways into the city sit under the title (if not, the title takes the middle of the heart) */
+	ways: boolean;
 }
 
 export const DEFAULT_PLANO: PlanoOptions = {
@@ -28,7 +30,8 @@ export const DEFAULT_PLANO: PlanoOptions = {
 	gap: 5.5,
 	doors: 0.42,
 	shafts: 0.3,
-	clearing: 268
+	clearing: 268,
+	ways: true
 };
 
 type Pt = [number, number];
@@ -71,7 +74,7 @@ export interface PlanoScene {
 	opening: number[];
 	/**
 	 * the heart of the clearing: a hexagon (centre, circumradius) inside the lines, and the title set in it, in its
-	 * upper part (the ways into the city go below it, from about 44 units under the centre)
+	 * upper part (the ways into the city go below it, from just under the centre: together they sit centred)
 	 */
 	centre: { c: Pt; r: number; title: Mark[] };
 }
@@ -102,21 +105,37 @@ function seeded(seed: number) {
 	return () => (s = (s * 16807) % 2147483647) / 2147483647;
 }
 
-/** What the galleries are called, for the bands of lettering: the parts of the Library. */
-const NAMED = ['galería de los volúmenes', 'pozo de ventilación', 'escalera de caracol'];
-const WORDS = [
-	'vestíbulo',
-	'gabinete de dormir',
-	'gabinete de las necesidades',
-	'zaguán',
-	'pasillo',
-	'rellano',
-	'anaqueles',
-	'sala de lectura',
-	'archivo',
-	'galería hexagonal',
-	'barandas',
-	'el espejo del zaguán'
+/**
+ * What the galleries' bands say: a fixed pool of excerpts from pages of babel-1 (src/lib/map/sample-text.ts),
+ * chosen once by hand; a band takes one at random each time it appears.
+ */
+export const EXCERPTS = [
+	'con una sola palabra',
+	'puede también quedarse',
+	'hay que fingir',
+	'lo que es lo mismo',
+	'cada parte del ser',
+	'por pequeño que parezca',
+	'absolutamente imposible',
+	'la manifestación de la vida',
+	'no me haga usted caso',
+	'he de hacerle una pregunta',
+	'no lo digo por mí',
+	'todo está bien',
+	'si alguna vez los encuentro',
+	'y en esto hay un abismo',
+	'que no acierto a explicar',
+	'me he ido en globo',
+	'siento que me duele el alma',
+	'el cielo es una cosa tan alta',
+	'el pobre hombre está solo',
+	'las ha hecho jirones',
+	'no hay manera de curarle',
+	'así como nuestra fe',
+	'como decía el proverbio',
+	'sólo el Cielo lo sabe',
+	'y que no es el mismo de siempre',
+	'en su mayor parte'
 ];
 
 /** From a page of babel-1 (src/lib/map/sample-text.ts): one line per loop, the outermost first. */
@@ -249,8 +268,7 @@ export function planoScene(o: Partial<PlanoOptions> = {}): PlanoScene {
 		)
 		.sort((a, b) => a.r - b.r)
 		.map(({ c }) => c);
-	const words = [...WORDS].sort(() => lrnd() - 0.5);
-	const phrases = [...NAMED, ...words];
+	const phrases = [...EXCERPTS].sort(() => lrnd() - 0.5);
 	const size = 11,
 		r = ((s - gap) * Math.sqrt(3)) / 2 - 2 - size * 0.72; // the baseline's apothem, letters leaning on the wall
 	order.forEach(([x, y], i) => {
@@ -309,14 +327,15 @@ export function planoScene(o: Partial<PlanoOptions> = {}): PlanoScene {
 	}
 
 	// the title, in the face kept for it, in the middle of the clearing
+	const [top, tsize] = p.ways ? [cy - 63, 24] : [cy - 12, 31];
 	const title: Mark[] = [
-		['LA BIBLIOTECA', cy - 28],
-		['DE BABEL', cy + 6]
+		['LA BIBLIOTECA', top],
+		['DE BABEL', top + (tsize * 34) / 24]
 	].map(([t, y]) => ({
 		kind: 'text',
 		t: t as string,
 		at: [cx, y as number],
-		size: 24,
+		size: tsize,
 		font: TITLE_FONT.font,
 		spacing: TITLE_FONT.spacing + 1
 	}));

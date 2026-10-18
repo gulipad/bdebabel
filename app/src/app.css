@@ -1,13 +1,17 @@
-/* La Ciudad de Babel: ink on paper. One deliberate world (no dark theme yet): every color is a token here. */
+/*
+ * La Ciudad de Babel: ink on paper, one deliberate world (no dark theme). Every colour is a token here, taken
+ * from the cover: its paper, its two inks (iron gall for the heart and the text, sepia for the plan).
+ */
 :root {
 	color-scheme: light;
-	--paper: #ece2cb;
-	--paper-deep: #e3d3b2;
-	--ink: #241a12; /* fresh iron-gall ink */
-	--ink-dry: #5b3f2a; /* dried ink: body text */
+	--paper: #efe0bf; /* the cover's sheet */
+	--paper-deep: #e4d1aa;
+	--ink: #281c14; /* iron gall: titles, text */
+	--sepia: #5c3a22; /* the plan's ink: lines, diagrams */
+	--ink-dry: #4a3424; /* body text */
 	--ink-faint: #8a7058; /* captions */
 	--madder: #a4473b; /* the one red */
-	--rule: rgba(91, 63, 42, 0.28);
+	--rule: rgba(92, 58, 34, 0.3);
 
 	--display: 'IM Fell English', 'Iowan Old Style', Georgia, serif;
 	--display-sc: 'IM Fell English SC', 'IM Fell English', Georgia, serif;

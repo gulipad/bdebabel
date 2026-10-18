@@ -45,6 +45,7 @@ export class Universe {
 
 	open = (address: string) => this.ready.then(() => this.ask({ type: 'open', address }));
 	random = (seed: string) => this.ready.then(() => this.ask({ type: 'random', seed }));
+	room = (seed: string) => this.ready.then(() => this.ask({ type: 'room', seed }));
 	search = (query: string, seed: string) =>
 		this.ready.then(() => this.ask({ type: 'search', query, seed }));
 	center = () => this.ready.then(() => this.ask({ type: 'center' }));

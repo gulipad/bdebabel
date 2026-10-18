@@ -38,7 +38,7 @@
 		</div>
 		{#if where}
 			<div class="coords">
-				<span><i>muro</i>{where.wall}</span><span><i>anaquel</i>{where.shelf}</span>
+				<span><i>muro</i>{where.wall}</span><span><i>balda</i>{where.shelf}</span>
 				<span><i>volumen</i>{where.volume}</span><span><i>página</i>{where.page}</span>
 			</div>
 		{/if}
@@ -50,7 +50,8 @@
 
 	<article>
 		{#each paragraphs as p, i (i)}
-			<p class:dlg={p.dialogue}>
+			<!-- a capital only when the page opens on a letter, not on a dash or a ¡ -->
+			<p class:dlg={p.dialogue} class:initial={i === 0 && /^\p{L}/u.test(p.parts[0].text)}>
 				{#each p.parts as part, j (j)}{#if part.found}<mark>{part.text}</mark
 						>{:else}{part.text}{/if}{/each}
 			</p>
@@ -125,7 +126,7 @@
 	article p.dlg {
 		text-align: left;
 	}
-	article p:first-of-type::first-letter {
+	article p.initial::first-letter {
 		float: left;
 		font-family: var(--display);
 		font-size: 3.3em;
