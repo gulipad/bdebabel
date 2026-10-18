@@ -1,4 +1,9 @@
 {
+	"$schema": "https://openapi.vercel.sh/vercel.json",
+	"framework": null,
+	"installCommand": "cd app && pnpm install --frozen-lockfile",
+	"buildCommand": "cd app && pnpm build && mkdir -p build/universe/babel-1 && cp -R ../lab/universes/babel-1/. build/universe/babel-1/",
+	"outputDirectory": "app/build",
 	"headers": [
 		{
 			"source": "/universe/(.*)",
