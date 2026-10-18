@@ -8,10 +8,10 @@
 
 <Sheet />
 <section class="notice">
-	<h1>La Ciudad de Babel</h1>
+	<h1>La Biblioteca de Babel</h1>
 	<p>
-		Esta ciudad está pensada para un ordenador. En el móvil se puede visitar, pero irá más lenta y
-		algunas cosas no se verán como deberían.
+		Esta biblioteca está optimizada para ordenador. Utiliza procesamiento gráfico que puede ser lento
+		en dispositivos móviles.
 	</p>
 	<InkLink onclick={oncontinue}>Entrar igualmente</InkLink>
 </section>
