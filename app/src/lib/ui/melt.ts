@@ -1,11 +1,15 @@
 /**
  * Melting, the city's one transition, for HTML: an element comes and goes the way the ink does on the cover,
- * in blotchy patches, through an SVG filter whose threshold rises with a noise field. `melt` is an action that
- * melts an element in when it mounts (or comes into view); `meltAway` melts one out and resolves when it's gone.
+ * in blotchy patches that grow out of a noise field. `melt` is an action that melts an element in when it mounts
+ * (or comes into view); `meltAway` melts one out and resolves when it's gone.
+ *
+ * It is a CSS mask, switched frame by frame through a few precomputed images of the patches. An SVG filter
+ * (feTurbulence, thresholded) recomputed the noise over the whole screen every frame, which an iPhone, at three
+ * device pixels to the CSS pixel, could only do a few times a second: the melts stuttered. Swapping a mask is
+ * a cheap thing for any browser to draw.
  */
 import { handheld } from './device.ts';
 
-const NS = 'http://www.w3.org/2000/svg';
 let made = 0;
 
 /**
@@ -14,59 +18,110 @@ let made = 0;
  */
 const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches && !handheld();
 
-/**
- * The part of an element the filter works on: what is on screen (from the element's top if it is still below),
- * at most ~4,000 device pixels tall. Safari draws nothing at all through a filter taller than that, and a long
- * page on a phone (Teoría is ~8,000 px, ×3 on an iPhone) is far taller. What lies outside it is off screen and
- * hidden only while the melt lasts. In the element's own pixels, which is what userSpaceOnUse means for HTML.
- */
-function region(node: HTMLElement | SVGElement) {
-	const r = node.getBoundingClientRect(),
-		pad = 24;
-	const tall = Math.floor(4000 / Math.max(1, devicePixelRatio || 1));
-	const top = Math.min(Math.max(0, -r.top - pad), Math.max(0, r.height - tall));
-	return {
-		x: -pad,
-		y: top - pad,
-		width: r.width + 2 * pad,
-		height: Math.min(r.height - top + 2 * pad, tall)
-	};
-}
+/** the images a melt steps through: more are smoother and cost a little more to make, once */
+const FRAMES = 24,
+	/** image px per css px: the patches are tens of px wide, so a quarter is plenty (the mask is smoothed up) */
+	SCALE = 0.25,
+	/** how far the mask reaches beyond the element's box, for what overflows it a little */
+	PAD = 24;
 
 /**
- * A filter of its own for one element; `set(p)` shows that much of it (0..1). It is two identical filters: each
- * step writes the threshold (and the region, measured again, since a page's content may arrive after it mounts)
- * into the one not in use, and points the element at it. iOS Safari keeps drawing a new element the way its
- * filter first drew it unless the element's own filter changes, so a melt-in stayed blank and then popped.
+ * The frames of a melt, `w` × `h` css px: blotchy fractal value noise (four octaves, like feTurbulence's
+ * fractalNoise) and, frame by frame, what of it is inked, from none to all, with a soft edge. Elements of a size
+ * share them (in three variants, so neighbours don't melt alike).
  */
-function filter(node: HTMLElement | SVGElement, grain: number) {
-	const id = `melt-${++made}`,
-		seed = made % 89;
-	const svg = document.createElementNS(NS, 'svg');
-	svg.setAttribute('aria-hidden', 'true');
-	svg.style.cssText = 'position:absolute;width:0;height:0;pointer-events:none';
-	svg.innerHTML = ['a', 'b']
-		.map(
-			(k) => `<filter id="${id}${k}" filterUnits="userSpaceOnUse">
-		<feTurbulence type="fractalNoise" baseFrequency="${grain}" numOctaves="4" seed="${seed}" />
-		<feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  1 0 0 0 0" />
-		<feComponentTransfer result="m"><feFuncA type="linear" slope="8" intercept="-6" /></feComponentTransfer>
-		<feComposite in="SourceGraphic" in2="m" operator="in" />
-	</filter>`
-		)
-		.join('');
-	document.body.append(svg);
-	const filters = svg.querySelectorAll('filter');
-	let shown = 0;
+const framed = new Map<string, string[]>();
+function frames(w: number, h: number, grain: number, seed: number) {
+	const key = `${w}:${h}:${grain}:${seed}`;
+	const kept = framed.get(key);
+	if (kept) return kept;
+	const iw = Math.max(8, Math.ceil(w * SCALE)),
+		ih = Math.max(8, Math.ceil(h * SCALE));
+	const lattice = (x: number, y: number, o: number) => {
+		let n = (x * 374761393 + y * 668265263 + (seed * 31 + o) * 2246822519) | 0;
+		n = Math.imul(n ^ (n >>> 13), 1274126177);
+		return ((n ^ (n >>> 16)) >>> 0) / 4294967296;
+	};
+	const smooth = (t: number) => t * t * (3 - 2 * t);
+	const value = (x: number, y: number, o: number) => {
+		const x0 = Math.floor(x),
+			y0 = Math.floor(y),
+			sx = smooth(x - x0),
+			sy = smooth(y - y0);
+		const a = lattice(x0, y0, o) + (lattice(x0 + 1, y0, o) - lattice(x0, y0, o)) * sx,
+			b = lattice(x0, y0 + 1, o) + (lattice(x0 + 1, y0 + 1, o) - lattice(x0, y0 + 1, o)) * sx;
+		return a + (b - a) * sy;
+	};
+	const f = grain / SCALE,
+		field = new Float32Array(iw * ih);
+	let lo = Infinity,
+		hi = -Infinity;
+	for (let y = 0; y < ih; y++)
+		for (let x = 0; x < iw; x++) {
+			let v = 0;
+			for (let o = 0, amp = 1, fr = f; o < 4; o++, amp /= 2, fr *= 2)
+				v += amp * value(x * fr, y * fr, o);
+			field[y * iw + x] = v;
+			lo = Math.min(lo, v);
+			hi = Math.max(hi, v);
+		}
+	for (let i = 0; i < field.length; i++) field[i] = (field[i] - lo) / (hi - lo || 1);
+	const c = document.createElement('canvas');
+	c.width = iw;
+	c.height = ih;
+	const g = c.getContext('2d')!,
+		img = g.createImageData(iw, ih);
+	const out: string[] = [];
+	for (let k = 0; k < FRAMES; k++) {
+		// the highest of the noise inks first; the threshold sinks from above it to below its lowest
+		const t = 1.1 - (1.2 * k) / (FRAMES - 1);
+		for (let i = 0; i < field.length; i++)
+			img.data[i * 4 + 3] = Math.round(255 * Math.min(1, Math.max(0, (field[i] - t) / 0.07)));
+		g.putImageData(img, 0, 0);
+		out.push(c.toDataURL('image/png'));
+	}
+	framed.set(key, out);
+	return out;
+}
+
+/** A mask of its own for one element; `set(p)` shows that much of it (0..1), `remove()` takes it off. */
+function mask(node: HTMLElement | SVGElement, grain: number) {
+	const seed = ++made % 3,
+		st = node.style;
+	let shots: string[] | null = null,
+		size = { w: 0, h: 0 };
+	const put = (k: string, v: string) => {
+		st.setProperty(k, v);
+		st.setProperty(`-webkit-${k}`, v);
+	};
+	const off = () => {
+		for (const k of ['mask-image', 'mask-size', 'mask-position', 'mask-repeat'])
+			for (const p of [k, `-webkit-${k}`]) st.removeProperty(p);
+	};
 	return {
 		set: (p: number) => {
-			shown = 1 - shown;
-			const f = filters[shown];
-			for (const [k, v] of Object.entries(region(node))) f.setAttribute(k, String(v));
-			f.querySelector('feFuncA')!.setAttribute('intercept', String(-5.8 + p * 4.6));
-			node.style.filter = `url(#${id}${shown ? 'b' : 'a'})`;
+			if (p <= 0 && !shots) {
+				// hidden, waiting: a mask with nothing in it, without making the frames yet
+				put('mask-image', 'linear-gradient(transparent, transparent)');
+				return;
+			}
+			const r = node.getBoundingClientRect();
+			if (!shots) {
+				// the frames cover the element's width and a screen and a half of its height, from the top of what
+				// is in view (what lies below is hidden only while the melt lasts)
+				size = {
+					w: Math.ceil((r.width + 2 * PAD) / 40) * 40,
+					h: Math.ceil((innerHeight * 1.5 + 2 * PAD) / 40) * 40
+				};
+				shots = frames(size.w, size.h, grain, seed);
+			}
+			const top = Math.max(0, -r.top) - PAD;
+			put('mask-image', `url(${shots[Math.round(p * (FRAMES - 1))]})`);
+			put('mask-size', `${size.w}px ${size.h}px`);
+			put('mask-position', `${-PAD}px ${top}px`);
+			put('mask-repeat', 'no-repeat');
 		},
-		remove: () => svg.remove()
+		remove: off
 	};
 }
 
@@ -98,7 +153,7 @@ export interface MeltOptions {
 export function melt(node: HTMLElement | SVGElement, o: MeltOptions = {}) {
 	const { ms = 1100, delay = 0, onView = false, grain = 0.03 } = o;
 	if (still()) return {};
-	const f = filter(node, grain);
+	const f = mask(node, grain);
 	f.set(0);
 	let gone = false,
 		seen: IntersectionObserver | null = null;
@@ -108,7 +163,6 @@ export function melt(node: HTMLElement | SVGElement, o: MeltOptions = {}) {
 				!gone &&
 				run(ms, f.set).then(() => {
 					if (gone) return;
-					node.style.filter = '';
 					f.remove();
 				}),
 			delay
@@ -137,11 +191,10 @@ export function melt(node: HTMLElement | SVGElement, o: MeltOptions = {}) {
 /** Melts an element away; resolves once it is gone (it stays hidden). */
 export async function meltAway(node: HTMLElement, ms = 450, grain = 0.03) {
 	if (still()) return;
-	const f = filter(node, grain);
+	const f = mask(node, grain);
 	f.set(1);
 	await run(ms, (p) => f.set(1 - p));
 	node.style.visibility = 'hidden';
-	node.style.filter = '';
 	f.remove();
 }
 
@@ -149,9 +202,8 @@ export async function meltAway(node: HTMLElement, ms = 450, grain = 0.03) {
 export async function meltIn(node: HTMLElement, ms = 600, grain = 0.03) {
 	node.style.visibility = '';
 	if (still()) return;
-	const f = filter(node, grain);
+	const f = mask(node, grain);
 	f.set(0);
 	await run(ms, f.set);
-	node.style.filter = '';
 	f.remove();
 }
