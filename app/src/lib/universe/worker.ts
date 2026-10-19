@@ -23,6 +23,8 @@ import type {
 	WorkerMessage
 } from './protocol';
 
+import { Sha256 } from './sha256.ts';
+
 declare const self: DedicatedWorkerGlobalScope;
 
 const CACHE = 'ciudad-de-babel-universes';
@@ -58,43 +60,87 @@ async function openCache(): Promise<Cache | null> {
 	}
 }
 
-/** Fetches a file of the universe (from the cache when we have it), streaming progress for large ones. */
+/** how many times a download is tried (resuming where it broke off) before it is given up */
+const TRIES = 6;
+class HttpError extends Error {}
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Fetches a file of the universe: from the cache when it is there, otherwise from the network. It is checked as it
+ * arrives, so the caller gets its SHA-256 along with it.
+ *
+ * Downloading, it holds one copy of the file: written straight into a buffer of its full size, hashed piece by
+ * piece, and passed on to the cache as it comes. On an iPhone, Safari closes a page that uses too much memory
+ * (and the model is 77 MB, which the engine then copies once more), so the file is never held twice. A
+ * connection that breaks (a train, a tunnel, the phone locked) is picked up where it stopped, a few times.
+ */
 async function fetchBytes(
 	url: string,
 	onProgress?: (loaded: number, total: number) => void
-): Promise<Uint8Array> {
+): Promise<{ bytes: Uint8Array; hash: string }> {
 	const cache = await openCache();
-	let res = (await cache?.match(url).catch(() => undefined)) ?? null;
-	const cached = !!res;
-	if (!res) {
-		res = await fetch(url);
-		if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
+	const hit = await cache?.match(url).catch(() => undefined);
+	if (hit) {
+		const bytes = new Uint8Array(await hit.arrayBuffer());
+		return { bytes, hash: await sha256(bytes) };
 	}
-	const total = Number(res.headers.get('Content-Length') ?? 0);
-	let out: Uint8Array;
-	if (onProgress && res.body) {
-		const reader = res.body.getReader();
-		const parts: Uint8Array[] = [];
-		let loaded = 0;
-		for (;;) {
-			const { done, value } = await reader.read();
-			if (done) break;
-			parts.push(value);
-			loaded += value.length;
-			onProgress(loaded, total);
+	let bytes: Uint8Array | null = null,
+		total = 0,
+		got = 0,
+		hash = new Sha256(),
+		// the copy for the cache, written as the bytes come (only of a download made in one go)
+		kept: Promise<unknown> = Promise.resolve();
+	const keep: { c: ReadableStreamDefaultController<Uint8Array> | null } = { c: null };
+	for (let attempt = 0; ; attempt++) {
+		try {
+			const res = await fetch(url, got ? { headers: { Range: `bytes=${got}-` } } : undefined);
+			if (!res.ok) throw new HttpError(`${url}: HTTP ${res.status}`);
+			if (got && res.status !== 206) {
+				// the server sent it all again instead of the rest: start again with it
+				[got, bytes, hash] = [0, null, new Sha256()];
+			}
+			if (!bytes) {
+				total = Number(res.headers.get('Content-Length') ?? 0);
+				if (!total || res.headers.get('Content-Encoding') || !res.body) {
+					// a size not known beforehand (a compressed small file): read it whole
+					const whole = new Uint8Array(await res.arrayBuffer());
+					await cache
+						?.put(url, new Response(whole as BufferSource, { headers: res.headers }))
+						.catch(() => {});
+					return { bytes: whole, hash: await sha256(whole) };
+				}
+				bytes = new Uint8Array(total);
+				if (cache && attempt === 0) {
+					const stream = new ReadableStream<Uint8Array>({ start: (c) => void (keep.c = c) });
+					kept = cache.put(url, new Response(stream, { headers: res.headers })).catch(() => {
+						// not kept (storage full or refused): the bytes are here all the same
+					});
+				}
+			}
+			const reader = res.body!.getReader();
+			for (;;) {
+				const { done, value } = await reader.read();
+				if (done) break;
+				if (got + value.length > total)
+					throw new HttpError(`${url}: more bytes than it said it had`);
+				bytes.set(value, got);
+				hash.update(value);
+				keep.c?.enqueue(value);
+				got += value.length;
+				onProgress?.(got, total);
+			}
+			if (got < total) throw new Error(`${url}: cut off at ${got} of ${total} bytes`);
+			keep.c?.close();
+			await kept;
+			return { bytes, hash: hash.hex() };
+		} catch (e) {
+			// a download picked up again isn't kept: the cache's copy would have a gap in it
+			keep.c?.error(e);
+			keep.c = null;
+			if (e instanceof HttpError || attempt + 1 >= TRIES) throw e;
+			await sleep(Math.min(8000, 500 * 2 ** attempt));
 		}
-		out = new Uint8Array(loaded);
-		let o = 0;
-		for (const p of parts) {
-			out.set(p, o);
-			o += p.length;
-		}
-	} else out = new Uint8Array(await res.arrayBuffer());
-	if (!cached)
-		await cache?.put(url, new Response(out as BufferSource, { headers: res.headers })).catch(() => {
-			// not kept (storage full or refused): the bytes are here all the same, and checked below
-		});
-	return out;
+	}
 }
 
 /** files of the universe served from somewhere else (the model, from Hugging Face): path → URL */
@@ -107,8 +153,7 @@ async function verified(
 	onProgress?: (l: number, t: number) => void
 ) {
 	const url = elsewhere[rel] ?? new URL(rel, base).href;
-	const bytes = await fetchBytes(url, onProgress);
-	const got = await sha256(bytes);
+	const { bytes, hash: got } = await fetchBytes(url, onProgress);
 	if (got !== expected) {
 		await (await openCache())?.delete(url).catch(() => false);
 		throw new Error(
