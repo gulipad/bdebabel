@@ -1204,4 +1204,20 @@
 			transition: none;
 		}
 	}
+	/* for a finger: the ways as large as a thumb needs (about 44 px to press), however small the plan is drawn */
+	@media (pointer: coarse) {
+		.ways {
+			gap: 0;
+		}
+		.ways button {
+			min-height: 44px;
+			padding: 0.55rem 1.4rem;
+			font-size: max(calc(15px * var(--k)), 1.3rem);
+			letter-spacing: max(calc(3px * var(--k)), 0.2em);
+		}
+		.ways svg {
+			bottom: 0.25rem;
+			height: 0.45rem;
+		}
+	}
 </style>
