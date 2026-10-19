@@ -2,6 +2,7 @@
 	/** The sheet under the inner pages: the cover's own paper (src/lib/pen makePaper), bare, filling the screen. */
 	import { onMount } from 'svelte';
 	import { compose, makePaper } from '#lib/pen/pen.ts';
+	import { showPaper } from './paper.ts';
 
 	let canvas: HTMLCanvasElement;
 
@@ -18,8 +19,12 @@
 			timer = window.setTimeout(draw, 200);
 		};
 		draw();
+		const hide = showPaper(canvas);
 		addEventListener('resize', redraw);
-		return () => removeEventListener('resize', redraw);
+		return () => {
+			hide();
+			removeEventListener('resize', redraw);
+		};
 	});
 </script>
 

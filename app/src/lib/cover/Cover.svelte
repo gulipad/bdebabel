@@ -39,9 +39,11 @@
 	import { livePool } from '#lib/pen/pool-gl.ts';
 	import { handheld } from '#lib/ui/device.ts';
 	import { meltAway, meltIn } from '#lib/ui/melt.ts';
+	import { showPaper } from '#lib/ui/paper.ts';
 	import { hasMovedWithin } from '#lib/ui/visit.ts';
 
 	let canvas: HTMLCanvasElement, stage: HTMLDivElement;
+	let hidePaper = () => {};
 
 	/** the bands on the go (a gallery, and when it began to ink in), and the frame that carries them on */
 	let bands: { g: number; start: number }[] = [],
@@ -160,6 +162,9 @@
 		const paper = makePaper(w, h, { scale: dpr });
 		const bare = sheet(w, h);
 		compose(bare, paper, []);
+		// the paper a melt covers the cover with, as it goes on a resize (ui/melt.ts)
+		hidePaper();
+		hidePaper = showPaper(bare.canvas);
 		// the first time, the sheet shows at once, bare (the entrance starts from it), while the rest is built
 		if (!entered) {
 			canvas.getContext('2d')!.drawImage(bare.canvas, 0, 0);
@@ -1063,6 +1068,7 @@
 			removeEventListener('pointermove', move);
 			document.documentElement.removeEventListener('pointerleave', leave);
 			cancelAnimationFrame(raf);
+			hidePaper();
 		};
 	});
 </script>
