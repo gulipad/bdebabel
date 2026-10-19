@@ -29,12 +29,20 @@ const FRAMES = 24,
  * The frames of a melt, `w` × `h` css px: blotchy fractal value noise (four octaves, like feTurbulence's
  * fractalNoise) and, frame by frame, what of it is inked, from none to all, with a soft edge. Elements of a size
  * share them (in three variants, so neighbours don't melt alike).
+ *
+ * They are decoded before a melt starts, and kept: Safari on an iPhone decodes an image only when it is first
+ * drawn, so a mask swapped in undecoded showed the element whole (or not at all) for a frame, and the melts
+ * flashed.
  */
-const framed = new Map<string, string[]>();
+const framed = new Map<string, Promise<string[]>>();
+const keep: HTMLImageElement[] = [];
 function frames(w: number, h: number, grain: number, seed: number) {
 	const key = `${w}:${h}:${grain}:${seed}`;
-	const kept = framed.get(key);
-	if (kept) return kept;
+	let job = framed.get(key);
+	if (!job) framed.set(key, (job = draw(w, h, grain, seed)));
+	return job;
+}
+async function draw(w: number, h: number, grain: number, seed: number) {
 	const iw = Math.max(8, Math.ceil(w * SCALE)),
 		ih = Math.max(8, Math.ceil(h * SCALE));
 	const lattice = (x: number, y: number, o: number) => {
@@ -66,30 +74,43 @@ function frames(w: number, h: number, grain: number, seed: number) {
 			hi = Math.max(hi, v);
 		}
 	for (let i = 0; i < field.length; i++) field[i] = (field[i] - lo) / (hi - lo || 1);
-	const c = document.createElement('canvas');
-	c.width = iw;
-	c.height = ih;
-	const g = c.getContext('2d')!,
-		img = g.createImageData(iw, ih);
-	const out: string[] = [];
-	for (let k = 0; k < FRAMES; k++) {
-		// the highest of the noise inks first; the threshold sinks from above it to below its lowest
-		const t = 1.1 - (1.2 * k) / (FRAMES - 1);
-		for (let i = 0; i < field.length; i++)
-			img.data[i * 4 + 3] = Math.round(255 * Math.min(1, Math.max(0, (field[i] - t) / 0.07)));
-		g.putImageData(img, 0, 0);
-		out.push(c.toDataURL('image/png'));
-	}
-	framed.set(key, out);
+	// each frame on its own canvas, so that they are all encoded at once
+	const out = await Promise.all(
+		Array.from({ length: FRAMES }, async (_, k) => {
+			const c = document.createElement('canvas');
+			c.width = iw;
+			c.height = ih;
+			const g = c.getContext('2d')!,
+				img = g.createImageData(iw, ih);
+			// the highest of the noise inks first; the threshold sinks from above it to below its lowest
+			const t = 1.1 - (1.2 * k) / (FRAMES - 1);
+			for (let i = 0; i < field.length; i++)
+				img.data[i * 4 + 3] = Math.round(255 * Math.min(1, Math.max(0, (field[i] - t) / 0.07)));
+			g.putImageData(img, 0, 0);
+			const blob = await new Promise<Blob | null>((done) => c.toBlob(done, 'image/png'));
+			return blob ? URL.createObjectURL(blob) : c.toDataURL('image/png');
+		})
+	);
+	await Promise.all(
+		out.map((src) => {
+			const im = new Image();
+			im.src = src;
+			keep.push(im);
+			return im.decode().catch(() => undefined);
+		})
+	);
 	return out;
 }
 
-/** A mask of its own for one element; `set(p)` shows that much of it (0..1), `remove()` takes it off. */
-function mask(node: HTMLElement | SVGElement, grain: number) {
-	const seed = ++made % 3,
-		st = node.style;
+/**
+ * A mask of its own for one element: `ready()` makes (or finds) its frames, `set(p)` shows that much of the
+ * element (0..1), `remove()` takes the mask off.
+ */
+function mask(node: HTMLElement | SVGElement, grain: number, seed = ++made % 3) {
+	const st = node.style;
 	let shots: string[] | null = null,
-		size = { w: 0, h: 0 };
+		size = { w: 0, h: 0 },
+		shown = '';
 	const put = (k: string, v: string) => {
 		st.setProperty(k, v);
 		st.setProperty(`-webkit-${k}`, v);
@@ -99,23 +120,26 @@ function mask(node: HTMLElement | SVGElement, grain: number) {
 			for (const p of [k, `-webkit-${k}`]) st.removeProperty(p);
 	};
 	return {
+		async ready() {
+			// the frames cover the element's width and a screen and a half of its height, from the top of what is
+			// in view (what lies below is hidden only while the melt lasts)
+			const r = node.getBoundingClientRect();
+			size = {
+				w: Math.ceil((r.width + 2 * PAD) / 40) * 40,
+				h: Math.ceil((innerHeight * 1.5 + 2 * PAD) / 40) * 40
+			};
+			shots = await frames(size.w, size.h, grain, seed);
+		},
 		set: (p: number) => {
-			if (p <= 0 && !shots) {
-				// hidden, waiting: a mask with nothing in it, without making the frames yet
+			if (!shots) {
+				// hidden, waiting for its frames: a mask with nothing in it
 				put('mask-image', 'linear-gradient(transparent, transparent)');
 				return;
 			}
-			const r = node.getBoundingClientRect();
-			if (!shots) {
-				// the frames cover the element's width and a screen and a half of its height, from the top of what
-				// is in view (what lies below is hidden only while the melt lasts)
-				size = {
-					w: Math.ceil((r.width + 2 * PAD) / 40) * 40,
-					h: Math.ceil((innerHeight * 1.5 + 2 * PAD) / 40) * 40
-				};
-				shots = frames(size.w, size.h, grain, seed);
-			}
-			const top = Math.max(0, -r.top) - PAD;
+			const top = Math.max(0, -node.getBoundingClientRect().top) - PAD,
+				now = `${shots[Math.round(p * (FRAMES - 1))]} ${top}`;
+			if (now === shown) return; // the same frame, in the same place: nothing to redraw
+			shown = now;
 			put('mask-image', `url(${shots[Math.round(p * (FRAMES - 1))]})`);
 			put('mask-size', `${size.w}px ${size.h}px`);
 			put('mask-position', `${-PAD}px ${top}px`);
@@ -153,20 +177,19 @@ export interface MeltOptions {
 export function melt(node: HTMLElement | SVGElement, o: MeltOptions = {}) {
 	const { ms = 1100, delay = 0, onView = false, grain = 0.03 } = o;
 	if (still()) return {};
-	const f = mask(node, grain);
+	// what melts in as it comes into view (Teoría's sections) takes turns among the variants; a page melts in
+	// with the frames it will melt away with, so leaving finds them ready
+	const f = onView ? mask(node, grain) : mask(node, grain, 0);
 	f.set(0);
 	let gone = false,
 		seen: IntersectionObserver | null = null;
 	const start = () =>
-		setTimeout(
-			() =>
-				!gone &&
-				run(ms, f.set).then(() => {
-					if (gone) return;
-					f.remove();
-				}),
-			delay
-		);
+		setTimeout(async () => {
+			await f.ready();
+			if (gone) return;
+			await run(ms, f.set);
+			if (!gone) f.remove();
+		}, delay);
 	if (onView) {
 		seen = new IntersectionObserver(
 			(es) => {
@@ -191,7 +214,8 @@ export function melt(node: HTMLElement | SVGElement, o: MeltOptions = {}) {
 /** Melts an element away; resolves once it is gone (it stays hidden). */
 export async function meltAway(node: HTMLElement, ms = 450, grain = 0.03) {
 	if (still()) return;
-	const f = mask(node, grain);
+	const f = mask(node, grain, 0);
+	await f.ready();
 	f.set(1);
 	await run(ms, (p) => f.set(1 - p));
 	node.style.visibility = 'hidden';
@@ -202,8 +226,9 @@ export async function meltAway(node: HTMLElement, ms = 450, grain = 0.03) {
 export async function meltIn(node: HTMLElement, ms = 600, grain = 0.03) {
 	node.style.visibility = '';
 	if (still()) return;
-	const f = mask(node, grain);
+	const f = mask(node, grain, 0);
 	f.set(0);
+	await f.ready();
 	await run(ms, f.set);
 	f.remove();
 }
