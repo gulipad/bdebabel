@@ -131,7 +131,7 @@
 			ordenada.
 		</p>
 
-		<p>Y con ñ. La de Basile no la tiene, y sin ñ no se puede escribir ni «sueño».</p>
+		<p>Y con ñ. Sin ñ no se puede escribir ni «sueño». Pieza clave del idioma de Borges.</p>
 
 		<p>Necesitamos, pues, un Bibliotecario.</p>
 	</section>
