@@ -1134,7 +1134,7 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: calc(8px * var(--k));
+		gap: calc(7.5px * var(--k));
 		visibility: hidden;
 	}
 	/* on the clean cover there is no pool: the ways are in ink, on bare paper */
@@ -1159,10 +1159,10 @@
 		background: none;
 		color: var(--ink);
 		font:
-			calc(21px * var(--k)) 'IM Fell English SC',
+			calc(19.5px * var(--k)) 'IM Fell English SC',
 			Georgia,
 			serif;
-		letter-spacing: calc(4px * var(--k));
+		letter-spacing: calc(3.75px * var(--k));
 		cursor: pointer;
 		transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.3, 1);
 	}
@@ -1212,7 +1212,7 @@
 		.ways button {
 			min-height: 44px;
 			padding: 0.55rem 1.4rem;
-			font-size: max(calc(21px * var(--k)), 1.3rem);
+			font-size: max(calc(19.5px * var(--k)), 1.3rem);
 			letter-spacing: max(calc(3px * var(--k)), 0.2em);
 		}
 		.ways svg {
