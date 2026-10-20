@@ -46,7 +46,7 @@
 	<blockquote class="preamble">
 		<p>
 			Todo está escrito aquí. Todo lo que te ha ocurrido, todo lo que has pensado, todo lo que has
-			escrito. También todo lo que no. Esta biblioteca contiene - en sentido literal - toda
+			escrito. También todo lo que no. Esta Biblioteca contiene - en sentido literal - toda
 			combinación posible de 3.200 caracteres, unas 10<sup>7.113</sup> páginas. Si pasaras infinitas eternidades
 			buscando páginas aleatorias, encontrarías aquí la historia de tu vida entera. Todo texto que encuentres
 			estará siempre en la misma dirección. Aquí te cuento cómo funciona.
@@ -60,11 +60,11 @@
 		piden que vaya más despacio, para no quedar mal ellos, así que despacha el trabajo en una hora y
 		pasa el resto del día leyendo y escribiendo en el sótano. Tres años después publica, dentro de <i
 			>El jardín de senderos que se bifurcan</i
-		>, un cuento de pocas páginas sobre una biblioteca que contiene todos los libros posibles. La
-		Biblioteca de Babel.
+		>, un cuento de pocas páginas sobre una biblioteca que contiene todos los libros posibles. «La
+		biblioteca de Babel».
 	</p>
 	<p>
-		En el cuento, la biblioteca es el universo entero: una sucesión de galerías hexagonales sin
+		En el cuento, la Biblioteca es el universo entero: una sucesión de galerías hexagonales sin
 		principio ni fin. Cada sala tiene cuatro muros de cinco baldas con 32 libros cada una, y cada
 		libro 410 páginas de 40 renglones de 80 letras, escritas con 25 símbolos. No hay dos libros
 		iguales, porque están todos los posibles.
@@ -79,15 +79,14 @@
 	</p>
 	<p>
 		Casi todo, eso sí, es ruido. Los bibliotecarios del cuento pasan la vida recorriendo galerías
-		para encontrar, con suerte, un verso con sentido entre galerías incontables de letras
-		aleatorias.
+		para encontrar, con suerte, un verso con sentido.
 	</p>
 
 	<section use:melt={{ onView: true }}>
 		<h2>La Biblioteca de Basile</h2>
 		<p>
-			Existe en internet un rincón muy especial, construido por Jonathan Basile en 2015. Es uno de
-			mis rincones favoritos de la web. En <a
+			Existe en internet un rincón muy especial, uno de mis favoritos de la web, construido por
+			Jonathan Basile en 2015. En <a
 				class="out"
 				href="https://libraryofbabel.info"
 				target="_blank"
@@ -103,8 +102,8 @@
 		<p>
 			En el universo observable hay unos 10<sup>80</sup> átomos. Cada página ocupa unos 2 KB, así
 			que harían falta unos 10<sup>4.683</sup> bytes. Si cada átomo del universo fuera un disco de 1
-			petabyte, cabrían 10<sup>95</sup> bytes. Si cada átomo de ese universo fuera a su vez, otro universo,
-			necesitaríamos encadenar 59 universos uno dentro de otro sólo para poder guardar esta biblioteca.
+			petabyte, cabrían 10<sup>95</sup> bytes. Si cada átomo de ese universo fuera a su vez otro universo,
+			necesitaríamos encadenar 59 universos uno dentro de otro sólo para poder guardar esta Biblioteca.
 			Son números absurdamente grandes.
 		</p>
 
@@ -119,17 +118,17 @@
 		<Bijection />
 
 		<p>
-			Pero la biblioteca de Basile tiene un problema. Si abres una página al azar, existe una
-			probabilidad prácticamente cierta de que sólo encontrarás ruido. Una sopa de letras
-			aleatorias. La posibilidad de que una página al azar empiece por una frase concreta de 30
-			letras es de 1 entre 10<sup>44</sup>.
+			Pero la Biblioteca de Basile tiene un problema. Si abres una página al azar, existe una
+			probabilidad prácticamente cierta de que sólo encuentres ruido. Una sopa de letras aleatorias.
+			La posibilidad de que una página al azar empiece por una frase concreta de 30 letras es de 1
+			entre 10<sup>44</sup>.
 		</p>
 
 		<p>
 			En homenaje a Borges y a Basile, he querido construir una biblioteca nueva. Una que mantenga
-			la magia de la original, esa la sensación numinosa de que en la próxima página aleatoria
-			podrías encontrar tu destino, pero no en un mar infinito de ruido. Quiero una Biblioteca de
-			Babel ordenada.&nbsp;
+			la magia de la original, esa sensación numinosa de que en la próxima página aleatoria podrías
+			encontrar tu destino, pero no en un mar infinito de ruido. Quiero una Biblioteca de Babel
+			ordenada.&nbsp;
 		</p>
 
 		<p>Necesitamos, pues, un Bibliotecario.</p>
@@ -142,8 +141,8 @@
 			micro-LLM de 66 millones de parámetros que hemos entrenado nosotros (Claude y yo) con 83.177
 			páginas de novelas y ensayos en español. Un LLM, en su más pura esencia, no es más que una
 			manera muy eficiente de comprimir el lenguaje, con pesos que dictan probabilidades. Podemos,
-			pues, con un LLM pequeño, «ordenar» nuestra Biblioteca: acercar la prosa legible y alejar el
-			ruido sin sentido.
+			con un LLM pequeño, «ordenar» nuestra Biblioteca: acercar la prosa legible y alejar el ruido
+			sin sentido.
 		</p>
 		<p>
 			El Bibliotecario escribe como si tirara un dado en cada palabra, un dado trucado con esas
@@ -191,7 +190,7 @@
 		<p>
 			No se le puede dar un nombre corto a todo, porque no hay suficientes nombres cortos (el
 			principio del palomar). En la Biblioteca de Basile, cada página tiene la misma probabilidad, y
-			cada dirección los mismo bits. Nosotros damos los cortos a las páginas legibles y los largos
+			cada dirección los mismos bits. Nosotros damos los cortos a las páginas legibles y los largos
 			al ruido. Siguen estando todas las páginas, y el Bibliotecario sólo decide dónde está cada
 			una. Ordena.
 		</p>
@@ -255,7 +254,7 @@
 			Bibliotecario, sus reglas de lectura y una clave), y si cambiamos uno solo, las páginas
 			cambian de sitio. Por eso cada dirección empieza por el nombre de su universo, y los universos
 			no se tocan. Ahora mismo ese universo lo llamamos babel-1, y podríamos hacer universos futuros
-			con gustos diferentes. Por ejemplo, se podría hacer una Biblioteca infinita cuyo Bibliotecario
+			con gustos diferentes. Por ejemplo, se podría hacer una biblioteca infinita cuyo Bibliotecario
 			hubiera sido entrenado con novela de terror, que mostraría este tipo de prosa con una
 			probabilidad mucho mayor.
 		</p>
