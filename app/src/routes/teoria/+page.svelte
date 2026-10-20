@@ -46,7 +46,7 @@
 	<blockquote class="preamble">
 		<p>
 			Todo está escrito aquí. Todo lo que te ha ocurrido, todo lo que has pensado, todo lo que has
-			escrito. También todo lo que no. Esta Biblioteca contiene - en sentido literal - toda
+			hecho. También todo lo que no. Esta Biblioteca contiene - en sentido literal - toda
 			combinación posible de 3.200 caracteres, unas 10<sup>7.113</sup> páginas. Si pasaras infinitas eternidades
 			buscando páginas aleatorias, encontrarías aquí la historia de tu vida entera. Todo texto que encuentres
 			estará siempre en la misma dirección. Aquí te cuento cómo funciona.
