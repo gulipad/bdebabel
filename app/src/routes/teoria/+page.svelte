@@ -128,13 +128,7 @@
 			En homenaje a Borges y a Basile, he querido construir una biblioteca nueva. Una que mantenga
 			la magia de la original, esa sensación numinosa de que en la próxima página aleatoria podrías
 			encontrar tu destino, pero no en un mar infinito de ruido. Quiero una Biblioteca de Babel
-			ordenada.
-		</p>
-
-		<p>
-			Lo otro que quería de mi biblioteca es la letra ñ, pieza fundamental del idioma de Borges. La
-			de Basile se escribe con 29 símbolos, sin ñ, sin tildes y sin mayúsculas. La nuestra, con 167:
-			la ñ, las tildes, las mayúsculas, los números y la puntuación de los libros, de la ¿ a la ».
+			ordenada (y con ñ, que la de Basile no tiene).
 		</p>
 
 		<p>Necesitamos, pues, un Bibliotecario.</p>
