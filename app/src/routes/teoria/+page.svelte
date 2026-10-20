@@ -55,36 +55,39 @@
 
 	<p class="opening">
 		En 1938, Jorge Luis Borges entra a trabajar como auxiliar en la Biblioteca Municipal Miguel
-		Cané, en Buenos Aires. Tres años después publica, dentro de <i
+		Cané, en Buenos Aires. Allí pasa largas jornadas, entre torres de madera de cedro, custodias de
+		los libros que inspirarían quizás su obra futura. Cataloga tan deprisa que sus compañeros le
+		piden que vaya más despacio, para no quedar mal ellos, así que despacha el trabajo en una hora y
+		pasa el resto del día leyendo y escribiendo en el sótano. Tres años después publica, dentro de <i
 			>El jardín de senderos que se bifurcan</i
-		>, un cuento de pocas páginas sobre una biblioteca que contiene todos los libros posibles.
+		>, un cuento de pocas páginas sobre una biblioteca que contiene todos los libros posibles. La
+		Biblioteca de Babel.
 	</p>
 	<p>
-		En el cuento, la biblioteca es el universo entero, una sucesión de galerías hexagonales sin
+		En el cuento, la biblioteca es el universo entero: una sucesión de galerías hexagonales sin
 		principio ni fin. Cada sala tiene cuatro muros de cinco baldas con 32 libros cada una, y cada
-		libro tiene 410 páginas de 40 renglones de 80 letras, escritas con 25 símbolos. No hay dos
-		libros iguales, porque están todos los posibles.
+		libro 410 páginas de 40 renglones de 80 letras, escritas con 25 símbolos. No hay dos libros
+		iguales, porque están todos los posibles.
 	</p>
 
 	<Anatomy />
 
 	<p>
-		Y son muchísimos. Un libro de Borges tiene 1.312.000 caracteres, así que hay 25<sup
-			>1.312.000</sup
-		>
-		libros distintos, un 1 seguido de más de 1.800.000 ceros. En alguno está tu biografía, en otros todas
-		sus versiones falsas y la refutación de cada una, además del catálogo de la Biblioteca y de miles
-		de catálogos equivocados.
+		Y son muchísimos, aunque no infinitos. Un libro de Borges tiene 1.312.000 caracteres, así que
+		hay 25<sup>1.312.000</sup> libros distintos, un 1 seguido de más de 1.800.000 ceros. En alguno está
+		tu biografía, en otros todas sus versiones falsas y la refutación de cada una.
 	</p>
 	<p>
 		Casi todo, eso sí, es ruido. Los bibliotecarios del cuento pasan la vida recorriendo galerías
-		para encontrar, con suerte, una línea con sentido.
+		para encontrar, con suerte, un verso con sentido entre galerías incontables de letras
+		aleatorias.
 	</p>
 
 	<section use:melt={{ onView: true }}>
 		<h2>La Biblioteca de Basile</h2>
 		<p>
-			En 2015, Jonathan Basile la construyó. En <a
+			Existe en internet un rincón muy especial, construido por Jonathan Basile en 2015. Es uno de
+			mis rincones favoritos de la web. En <a
 				class="out"
 				href="https://libraryofbabel.info"
 				target="_blank"
@@ -94,47 +97,61 @@
 				><span class="sr">(se abre en otra pestaña)</span></a
 			>
 			están todas las páginas posibles de 3.200 caracteres con 29 símbolos (las letras, el espacio, la
-			coma y el punto). Son 29<sup>3.200</sup>, unas 10<sup>4.680</sup> páginas, cuando en el
-			universo observable hay unos 10<sup>80</sup> átomos.
+			coma y el punto). Son 29<sup>3.200</sup>, unas 10<sup>4.680</sup> páginas. No están guardadas en
+			ningún sitio, porque no cabrían.
 		</p>
 		<p>
-			No están guardadas en ningún sitio, porque no cabrían. Cada página ocupa unos 2 KB, así que
-			harían falta unos 10<sup>4.683</sup> bytes. Si cada átomo del universo fuera un disco de 1
-			petabyte, cabrían 10<sup>95</sup> bytes. Si cada uno de esos átomos fuera a su vez un universo lleno
-			de discos, y así sucesivamente, harían falta 59 universos, uno dentro de otro.
+			En el universo observable hay unos 10<sup>80</sup> átomos. Cada página ocupa unos 2 KB, así
+			que harían falta unos 10<sup>4.683</sup> bytes. Si cada átomo del universo fuera un disco de 1
+			petabyte, cabrían 10<sup>95</sup> bytes. Si cada átomo de ese universo fuera a su vez, otro universo,
+			necesitaríamos encadenar 59 universos uno dentro de otro sólo para poder guardar esta biblioteca.
+			Son números absurdamente grandes.
 		</p>
 
 		<Nesting />
 
 		<p>
-			Lo que Basile programó es una función que convierte una dirección (sala, muro, balda, libro,
-			página) en una página, y que se puede deshacer. Abrir una página es aplicar la función, y
-			buscar un texto es aplicarla al revés.
+			Lo que Basile programó es una función reversible que convierte una dirección (sala, muro,
+			balda, libro, página) en una página. Abrir una página es aplicar la función, y buscar un texto
+			es aplicarla al revés.
 		</p>
 
 		<Bijection />
 
 		<p>
-			Si abres una página al azar te encuentras algo como «xqkfm, ehu.rpz lw», y así casi siempre.
-			La probabilidad de que una página al azar empiece por una frase concreta de 30 letras es de 1
-			entre 10<sup>44</sup>.
+			Pero la biblioteca de Basile tiene un problema. Si abres una página al azar, existe una
+			probabilidad prácticamente cierta de que sólo encontrarás ruido. Una sopa de letras
+			aleatorias. La posibilidad de que una página al azar empiece por una frase concreta de 30
+			letras es de 1 entre 10<sup>44</sup>.
 		</p>
+
+		<p>
+			En homenaje a Borges y a Basile, he querido construir una biblioteca nueva. Una que mantenga
+			la magia de la original, esa la sensación numinosa de que en la próxima página aleatoria
+			podrías encontrar tu destino, pero no en un mar infinito de ruido. Quiero una Biblioteca de
+			Babel ordenada.&nbsp;
+		</p>
+
+		<p>Necesitamos, pues, un Bibliotecario.</p>
 	</section>
 
 	<section use:melt={{ onView: true }}>
 		<h2>El Bibliotecario</h2>
 		<p>
-			En esta Ciudad, entre la dirección y la página hay un Bibliotecario. Es un modelo de lenguaje
-			de 66 millones de parámetros que hemos entrenado nosotros (Claude y yo) con 83.177 páginas de
-			novelas y ensayos en español - cada una, 16 veces. Se llama librarian-1, y dado un texto
-			calcula la probabilidad de cada palabra que podría venir después.
+			En esta Biblioteca, entre la dirección algorítmica y la página existe un Bibliotecario. Es un
+			micro-LLM de 66 millones de parámetros que hemos entrenado nosotros (Claude y yo) con 83.177
+			páginas de novelas y ensayos en español. Un LLM, en su más pura esencia, no es más que una
+			manera muy eficiente de comprimir el lenguaje, con pesos que dictan probabilidades. Podemos,
+			pues, con un LLM pequeño, «ordenar» nuestra Biblioteca: acercar la prosa legible y alejar el
+			ruido sin sentido.
 		</p>
 		<p>
 			El Bibliotecario escribe como si tirara un dado en cada palabra, un dado trucado con esas
 			probabilidades. La dirección de una página es la lista de tiradas, empaquetada en un solo
 			número. Al hojear, el Bibliotecario desempaqueta las tiradas y escribe. Al buscar, calcula qué
 			tiradas habrían escrito tu frase. Como el Bibliotecario no cambia, las mismas tiradas dan
-			siempre la misma página.
+			siempre la misma página. Cada página de tu vida (y de la que no viviste) está escrita en una
+			dirección inmutable de esta Biblioteca.
 		</p>
 		<p>
 			El dado funciona así. La línea de todos los números se corta en rodajas, una por cada palabra
@@ -146,56 +163,60 @@
 		<Intervals />
 
 		<p>
-			Por eso al hojear sale prosa. Una dirección al azar cae casi siempre en una rodaja ancha, la
-			de una palabra que el Bibliotecario esperaba, y así palabra tras palabra. El ruido sigue ahí,
-			en rodajas finísimas - más o menos una de cada millón de páginas al azar es ruido puro.
+			Por eso al hojear sale prosa en lugar de ruido. Una dirección al azar cae casi siempre en una
+			rodaja ancha, la de una palabra que el Bibliotecario esperaba, y así palabra tras palabra. El
+			ruido sigue ahí, en rodajas finísimas; más o menos una de cada millón de páginas al azar es
+			ruido puro.
 		</p>
 	</section>
 
 	<section use:melt={{ onView: true }}>
 		<h2>La longitud de una dirección</h2>
 		<p>
-			Cada palabra cuesta <Log /> bits, donde <i>p</i> es su probabilidad. La palabra que el Bibliotecario
-			veía venir cuesta casi nada, y la que no se esperaba cuesta mucho. La dirección de una página es
-			la suma de esos costes, así que mide lo que el Bibliotecario no podía adivinar de ella. Shannon
-			demostró en 1948 que, de media, no se puede hacer más corta.
+			Cada palabra cuesta <Log /> bits, donde <i>p</i> es su probabilidad. Cuanto más predecible es el
+			texto (según los gustos de nuestro Bibliotecario), más corta es la dirección. Cuanto más extraño,
+			más larga es. La dirección de una página es la suma de esos costes, así que mide lo que el Bibliotecario
+			no podía adivinar de ella.
 		</p>
 		<p>
 			En la Biblioteca de Basile no hay nada que adivinar. Cada carácter es uno de 29, igual de
 			probable, y cuesta siempre <Log of="29" minus={false} /> ≈ 4,86 bits, se espere o no. Una página
 			cuesta 3.200 × 4,86 ≈ 15.546 bits, unos 3.000 caracteres de dirección. Una página típica de esta
-			Biblioteca cuesta unos 2.300 bits, unos 390 caracteres, casi siete veces menos. El ruido, en cambio,
-			aquí sale más caro que allí.
+			Biblioteca cuesta unos 2.300 bits, unos 390 caracteres, casi siete veces menos. Pero hay un precio
+			a pagar: el ruido aquí sale más caro que allí.
 		</p>
 
 		<Lengths />
 
 		<p>
 			No se le puede dar un nombre corto a todo, porque no hay suficientes nombres cortos (el
-			principio del palomar). Basile reparte los nombres por igual. Nosotros damos los cortos a las
-			páginas legibles y los largos al ruido. Siguen estando todas las páginas, y el Bibliotecario
-			sólo decide dónde está cada una.
+			principio del palomar). En la Biblioteca de Basile, cada página tiene la misma probabilidad, y
+			cada dirección los mismo bits. Nosotros damos los cortos a las páginas legibles y los largos
+			al ruido. Siguen estando todas las páginas, y el Bibliotecario sólo decide dónde está cada
+			una. Ordena.
 		</p>
 	</section>
 
 	<section use:melt={{ onView: true }}>
 		<h2>El Centro y Las Afueras</h2>
 		<p>
-			La longitud de la dirección es también una distancia, que medimos en <i>pasos</i>. Una página
-			está a tantos pasos del centro como bits tiene su dirección. Esa distancia depende sólo del
-			texto de la página, así que es la misma en cualquier sitio donde la encuentres.
+			La longitud de la dirección también nos da información. Es una distancia, que medimos en <i
+				>pasos</i
+			>. Una página está a tantos pasos del centro como bits tiene su dirección. Esa distancia
+			depende sólo del texto de la página, así que es la misma en cualquier sitio donde la
+			encuentres.
 		</p>
 		<p>
-			El Centro existe, a 0 pasos. Es la página que el Bibliotecario espera más que ninguna, la más
-			probable de toda la Biblioteca.
+			El Centro es la página que el Bibliotecario espera más que ninguna, la más probable de toda la
+			Biblioteca.
 		</p>
 		<p>
-			Alrededor están los anillos. <i>El Centro</i> llega hasta 2.078 pasos, con prosa muy
-			previsible y repeticiones. <i>Los Barrios</i> llegan hasta 2.820 y son páginas de novela,
-			donde cae casi todo lo que hojeas. <i>Las Afueras</i>, hasta 5.640, tienen nombres raros y
-			frases torcidas.
-			<i>Los Confines</i>, hasta 22.560, tienen palabras sueltas entre ruido. Más allá está
-			<i>El Vacío</i>, que es la Biblioteca de Basile dentro de la nuestra.
+			Alrededor están los anillos. <i>El Centro</i> llega hasta 2.078 pasos. Es prosa muy previsible
+			y con repeticiones. <i>Los Barrios</i> llegan hasta 2.820 y son páginas de novela. Aquí cae
+			casi todo lo que hojeas.
+			<i>Las Afueras</i>, hasta 5.640, tienen nombres raros y frases torcidas. <i>Los Confines</i>,
+			hasta 22.560, tienen palabras sueltas entre ruido. Más allá está <i>El Vacío</i>, que es la
+			Biblioteca de Basile dentro de la nuestra.
 		</p>
 
 		<Rings />
@@ -212,45 +233,38 @@
 			Cuando buscas «te quiero», el Bibliotecario escribe hacia atrás el texto que lleva hasta tu
 			frase (también lo entrenamos para escribir de derecha a izquierda), escribe hacia delante lo
 			que viene después y te lleva a la dirección de esa página, que es una dirección como cualquier
-			otra. La misma frase lleva siempre a la misma página primero, y desde ahí puedes pedir otras.
-		</p>
-		<p>
-			En una prueba, «te quiero» salió a 2.126 pasos del centro, en mitad de una discusión:
-			«—Háblame, yo te quiero; te amo, te he amado mucho.»
-		</p>
-		<p>
-			Las copias son inevitables. Una biblioteca que reparte las páginas según su probabilidad, y
-			que tiene una página en cada dirección, tiene que repetirlas. Cada página aparece infinitas
-			veces, más cuanto más probable es. El narrador de Borges insiste en que no hay dos libros
-			iguales, y en eso la Biblioteca de Basile se parece más a la suya que la nuestra.
+			otra. Esa página con esa frase existirá siempre en la misma dirección. La misma frase está
+			presente infinitas veces, así que te llevamos a una de ellas, elegida según lo probable que
+			es, y siempre a la misma.
 		</p>
 	</section>
 
 	<section use:melt={{ onView: true }}>
 		<h2>Un universo de números enteros</h2>
 		<p>
-			El Bibliotecario tiene que calcular exactamente lo mismo en todos los dispositivos. Una
-			dirección es la codificación exacta de una página, así que si tu móvil y mi portátil discrepan
-			en el último decimal de una probabilidad, la misma dirección abre páginas distintas, y con
-			decimales los dispositivos discrepan. Por eso librarian-1 hace toda su aritmética con números
-			enteros, con pesos de 8 bits, tablas para las exponenciales y una sola regla de redondeo. En
-			un portátil escribe una página en unos 2 segundos, y la misma página en cualquier sitio.
+			El Bibliotecario tiene que calcular exactamente lo mismo en todos los dispositivos, para que
+			siempre encontremos el mismo texto en la misma dirección. Una dirección es la codificación
+			exacta de una página, así que si tu móvil y mi portátil discrepan en el último decimal de una
+			probabilidad, la misma dirección abre páginas distintas, y con decimales los dispositivos
+			discrepan. Por eso nuestro LLM hace toda su aritmética con números enteros, con pesos de 8
+			bits, tablas para las exponenciales y una sola regla de redondeo. En un portátil escribe una
+			página en unos 2 segundos, y la misma página en cualquier sitio.
 		</p>
 		<p>
-			Así el universo se puede congelar. babel-1 es una lista de números (los pesos del
+			Así el universo se puede congelar. El modelo es una lista de números (los pesos del
 			Bibliotecario, sus reglas de lectura y una clave), y si cambiamos uno solo, las páginas
 			cambian de sitio. Por eso cada dirección empieza por el nombre de su universo, y los universos
-			no se tocan.
+			no se tocan. Ahora mismo ese universo lo llamamos babel-1, y podríamos hacer universos futuros
+			con gustos diferentes. Por ejemplo, se podría hacer una Biblioteca infinita cuyo Bibliotecario
+			hubiera sido entrenado con novela de terror, que mostraría este tipo de prosa con una
+			probabilidad mucho mayor.
 		</p>
 
 		<p>
-			Y esa lista cabe en muy poco. babel-1 pesa 78 MB: 77 son los pesos del Bibliotecario, algo más
-			de uno las tablas de su vocabulario, y el motor que escribe con ellos son 37 KB de código. La
-			ciudad que lo enseña, sin la música, otros 250 KB. Con eso se abre cualquier página de una
-			biblioteca que no cabe en el universo. Sólo la parte de Basile, guardada, ocuparía 10<sup
-				>4.683</sup
-			> bytes - 59 universos de discos, uno dentro de otro -, y aquí va entera en menos de lo que pesa
-			un minuto de vídeo en 4K (nada mal).
+			El proyecto es bastante ligero. babel-1 pesa 78 MB: 77 son los pesos del Bibliotecario, algo
+			más de 1 MB las tablas de su vocabulario, y el motor que escribe con ellos son 37 KB de
+			código. La ciudad que lo enseña, sin la música, otros 250 KB. Con eso se abre cualquier página
+			de una biblioteca que no cabe en el universo.
 		</p>
 	</section>
 
