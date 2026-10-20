@@ -128,8 +128,10 @@
 			En homenaje a Borges y a Basile, he querido construir una biblioteca nueva. Una que mantenga
 			la magia de la original, esa sensación numinosa de que en la próxima página aleatoria podrías
 			encontrar tu destino, pero no en un mar infinito de ruido. Quiero una Biblioteca de Babel
-			ordenada (y con ñ, que la de Basile no tiene).
+			ordenada.
 		</p>
+
+		<p>Y con ñ. La de Basile no la tiene, y sin ñ no se puede escribir ni «sueño».</p>
 
 		<p>Necesitamos, pues, un Bibliotecario.</p>
 	</section>
