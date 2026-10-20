@@ -9,7 +9,13 @@
 	import Nesting from '#lib/theory/Nesting.svelte';
 	import Rings from '#lib/theory/Rings.svelte';
 	import InkLink from '#lib/ui/InkLink.svelte';
+	import { page } from '$app/state';
+	import TextEditor from '#lib/dev/TextEditor.svelte';
 	import { melt } from '#lib/ui/melt.ts';
+
+	// a temporary editor, on the dev server only (?editar): see lib/dev/TextEditor.svelte
+	const editing = import.meta.env.DEV && page.url.searchParams.has('editar');
+	let article = $state<HTMLElement>();
 </script>
 
 <svelte:head>
@@ -34,8 +40,18 @@
 	</p>
 {/snippet}
 
-<article class="theory">
+<article class="theory" bind:this={article}>
 	<h1>La Biblioteca Infinita</h1>
+
+	<blockquote class="preamble">
+		<p>
+			Todo está escrito aquí. Todo lo que te ha ocurrido, todo lo que has pensado, todo lo que has
+			escrito. También todo lo que no. Esta biblioteca contiene - en sentido literal - toda
+			combinación posible de 3.200 caracteres, unas 10<sup>7.113</sup> páginas. Si pasaras infinitas eternidades
+			buscando páginas aleatorias, encontrarías aquí la historia de tu vida entera. Todo texto que encuentres
+			estará siempre en la misma dirección. Aquí te cuento cómo funciona.
+		</p>
+	</blockquote>
 
 	<p class="opening">
 		En 1938, Jorge Luis Borges entra a trabajar como auxiliar en la Biblioteca Municipal Miguel
@@ -258,6 +274,7 @@
 		{@render credit()}
 	</section>
 </article>
+{#if editing && article}<TextEditor root={article} name="teoria" />{/if}
 
 <style>
 	.theory {
@@ -282,6 +299,22 @@
 		line-height: 1.62;
 		color: var(--ink-dry);
 		hyphens: auto;
+	}
+	/* the preamble: the promise, before the story of how it is kept */
+	.preamble {
+		margin: 0 0 2.2rem;
+		padding: 0.1rem 0 0.1rem 1.3rem;
+		border-left: 2px solid rgba(164, 71, 59, 0.55);
+	}
+	.preamble p {
+		margin: 0;
+		font: italic 1.22rem / 1.6 var(--display);
+		color: var(--ink-dry);
+		text-wrap: pretty;
+	}
+	.preamble sup {
+		font-size: 0.7em;
+		font-style: normal;
 	}
 	.opening::first-letter {
 		float: left;

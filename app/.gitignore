@@ -24,3 +24,6 @@ vite.config.ts.timestamp-*
 # Playwright
 test-results
 !.env.production
+
+# the temporary text editor's saved changes
+.edits/

@@ -1,4 +1,4 @@
-import { createReadStream, statSync } from 'node:fs';
+import { createReadStream, mkdirSync, statSync, writeFileSync } from 'node:fs';
 import { extname, join, normalize, resolve } from 'node:path';
 import type { Connect, Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
@@ -47,9 +47,34 @@ function universes(): Plugin {
 	};
 }
 
+/**
+ * The temporary text editor's other half (lib/dev/TextEditor.svelte): in dev only, POST /__edits keeps what was
+ * changed on a page in app/.edits/<name>.json, to be put into the source by hand.
+ */
+function edits(): Plugin {
+	return {
+		name: 'babel-edits',
+		apply: 'serve',
+		configureServer: (server) =>
+			void server.middlewares.use('/__edits', (req, res) => {
+				if (req.method !== 'POST') return void res.writeHead(405).end();
+				let body = '';
+				req.on('data', (c) => (body += c));
+				req.on('end', () => {
+					const { name } = JSON.parse(body) as { name: string };
+					const dir = resolve(import.meta.dirname, '.edits');
+					mkdirSync(dir, { recursive: true });
+					writeFileSync(join(dir, `${name.replace(/[^a-z0-9-]/gi, '')}.json`), body);
+					res.writeHead(200).end('ok');
+				});
+			})
+	};
+}
+
 export default defineConfig({
 	plugins: [
 		universes(),
+		edits(),
 		sveltekit({
 			compilerOptions: {
 				// Force runes mode for the project, except for libraries. Can be removed in svelte 6.
