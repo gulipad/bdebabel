@@ -255,18 +255,15 @@
 	</section>
 
 	<section use:melt={{ onView: true }}>
-		<h2>Lo que se pierde</h2>
+		<h2>Por qué</h2>
+		<p>¿Por qué no?</p>
 		<p>
-			Se pierde algo de vértigo. En la Biblioteca de Basile, una frase con sentido es un milagro, y
-			aquí aparece en cada página, con la sensación inquietante de que alguien la escribió. Se
-			pierde neutralidad, porque el Bibliotecario tiene sus gustos (los de alguien que ha leído
-			sobre todo prosa del siglo XIX) y nosotros tenemos los nuestros. Y cada página deja de ser
-			única.
+			Vivimos una era extraordinaria. Una era en la que un proyecto como este, que hace sólo un par
+			de años habría llevado 4 meses, se puede construir en un fin de semana. La brecha entre la
+			idea y la creación nunca ha sido tan estrecha. Las barreras técnicas que nos impedían hacer
+			realidad todo lo que surge de nuestra cabeza empiezan a disolverse.
 		</p>
-		<p>
-			A cambio, una página al azar se puede leer, y una búsqueda pone tu frase en mitad de la
-			historia de otro, con alguien que le contesta.
-		</p>
+		<p>Es hora de construir.</p>
 		<div class="ways">
 			<InkLink href={resolve('/buscar')}>Buscar una frase</InkLink>
 			<InkLink href={resolve('/ir')}>Ir a una dirección</InkLink>
