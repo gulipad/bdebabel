@@ -69,7 +69,13 @@ export interface Paper {
 export function makePaper(
 	w: number,
 	h: number,
-	{ tint = [239, 224, 191] as [number, number, number], seed = 7, scale = 1 } = {}
+	{
+		tint = [239, 224, 191] as [number, number, number],
+		seed = 7,
+		scale = 1,
+		/** the light falling off towards the edges; left out of a paper that scrolls (see rimShade) */
+		rim: withRim = true
+	} = {}
 ): Paper {
 	const grain = new Float32Array(w * h);
 	const rgb = new Uint8ClampedArray(w * h * 3);
@@ -103,7 +109,7 @@ export function makePaper(
 			const cloud =
 				(clouds[n] * (1 - fx) + clouds[n + 1] * fx) * (1 - fy) +
 				(clouds[n + cw] * (1 - fx) + clouds[n + cw + 1] * fx) * fy;
-			const rim = Math.max(0, Math.hypot(x - cx, y - cy) / rmax - 0.62) / 0.38;
+			const rim = withRim ? Math.max(0, Math.hypot(x - cx, y - cy) / rmax - 0.62) / 0.38 : 0;
 			const k = 1 + (g - 0.5) * 0.05 - (cloud - 0.5) * 0.05 - rim * rim * 0.08;
 			rgb[i * 3] = tint[0] * k;
 			rgb[i * 3 + 1] = tint[1] * k;
@@ -225,6 +231,26 @@ export function inkLayer(w: number, h: number) {
  * Multiplies ink layers onto the paper. Each layer has its ink colour (sRGB) and strength; the paper's tooth
  * modulates the ink (less on the raised fibres, a little more in the hollows), so line and sheet share a texture.
  */
+/**
+ * The paper's light, on its own: grey, white in the middle and up to 8% darker towards the corners (the same
+ * falloff makePaper gives a sheet), to multiply over a paper made without it.
+ */
+export function rimShade(w: number, h: number): ImageData {
+	const img = new ImageData(w, h),
+		cx = w / 2,
+		cy = h / 2,
+		rmax = Math.hypot(cx, cy);
+	for (let y = 0; y < h; y++)
+		for (let x = 0; x < w; x++) {
+			const rim = Math.max(0, Math.hypot(x - cx, y - cy) / rmax - 0.62) / 0.38,
+				v = 255 * (1 - rim * rim * 0.08),
+				i = (y * w + x) * 4;
+			img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+			img.data[i + 3] = 255;
+		}
+	return img;
+}
+
 export function compose(
 	out: CanvasRenderingContext2D,
 	paper: Paper,
