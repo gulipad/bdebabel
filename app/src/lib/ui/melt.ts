@@ -22,7 +22,9 @@ const /** noise px per css px: the patches are tens of px wide, so a quarter is 
 	/** how far the paper reaches beyond the element's box, for what overflows it a little */
 	PAD = 24,
 	/** how soft a patch's edge is, in the noise's 0..1 */
-	EDGE = 0.07;
+	EDGE = 0.07,
+	/** ms a melt waits for paper to cover with, before it goes on without */
+	WAIT = 1500;
 
 /** Blotchy noise over `w` × `h` css px, at SCALE, spread over 0..1. */
 interface Field {
@@ -86,6 +88,8 @@ function field(w: number, h: number, grain: number, seed: number): Field {
 interface Melt {
 	node: HTMLElement | SVGElement;
 	field: Field;
+	/** when it was asked for (it may wait for the paper) */
+	asked: number;
 	/** where the noise's top lies on the element, in its own px (the top of what was in view as it began) */
 	top: number;
 	/** the noise's cover, small: the paper is laid through it */
@@ -129,6 +133,12 @@ function frame(now: number) {
 	const k = c.width / innerWidth;
 	let covered = false;
 	for (const m of [...live]) {
+		// no paper yet (the inner pages' is still being made, arriving from the cover): a melt waits for it, hidden
+		// (or whole, going away), though not for ever
+		if (!paper && now - m.asked < WAIT) {
+			m.t0 = now;
+			continue;
+		}
 		const p = Math.min(1, (now - m.t0) / m.ms);
 		if (p >= 1) {
 			live.delete(m);
@@ -193,6 +203,7 @@ function run(node: HTMLElement | SVGElement, ms: number, way: 1 | -1, grain: num
 			way,
 			ms,
 			t0: performance.now(),
+			asked: performance.now(),
 			shown: false,
 			done
 		});

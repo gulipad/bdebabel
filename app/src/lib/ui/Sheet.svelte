@@ -55,11 +55,12 @@
 			[url, tile] = [next, im];
 		}
 
-		// the paper as it is on screen now: the grain where the page has scrolled it to, under the light
+		// the paper as it is on screen now: the grain where the page has scrolled it to, under the light (none
+		// while the grain is still being made: the light alone is white, and a melt would lay white over the page)
 		const screen = document.createElement('canvas');
 		let at = NaN;
 		function onScreen() {
-			if (!tile) return light;
+			if (!tile) return null;
 			if (screen.width !== light.width || screen.height !== light.height || at !== scrollY) {
 				screen.width = light.width;
 				screen.height = light.height;

@@ -3,7 +3,8 @@
  * has scrolled it to; or the cover's own bare sheet): melts (melt.ts) cover what they hide with a copy of it,
  * so that what is hidden looks like paper.
  */
-type Source = HTMLCanvasElement | (() => HTMLCanvasElement);
+/** (a function may have nothing yet: the paper is still being made) */
+type Source = HTMLCanvasElement | (() => HTMLCanvasElement | null);
 let current: Source | null = null;
 
 /** Registers the paper on screen; returns the way to take it back off. */
