@@ -73,6 +73,10 @@ function field(w: number, h: number, grain: number, seed: number): Field {
 			hi = Math.max(hi, s);
 		}
 	for (let i = 0; i < v.length; i++) v[i] = (v[i] - lo) / (hi - lo || 1);
+	// by rank, so that as the threshold sweeps it the ink comes (or goes) evenly: noise bunches in the middle,
+	// and swept as it is, a melt's first and last fifths showed almost nothing, a page change a blank paper
+	const order = Array.from(v.keys()).sort((a, b) => v[a] - v[b]);
+	order.forEach((i, r) => (v[i] = r / (order.length - 1 || 1)));
 	const made = { w, h, iw, ih, v };
 	fields.set(key, made);
 	return made;
@@ -132,8 +136,9 @@ function frame(now: number) {
 			continue;
 		}
 		if (paper) {
-			// the cover: paper where the noise is below the threshold; the highest of the noise shows first
-			const t = 1.1 - 1.2 * (m.way === 1 ? p : 1 - p),
+			// the cover: paper where the noise is below the threshold; the highest of the noise shows first (from
+			// nothing at 0 to all of it at 1, edge and all)
+			const t = 1 - (1 + EDGE) * (m.way === 1 ? p : 1 - p),
 				{ v } = m.field,
 				a = m.img.data;
 			for (let i = 0; i < v.length; i++)
