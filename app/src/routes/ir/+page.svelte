@@ -40,20 +40,19 @@
 <svelte:head><title>Ir · La Biblioteca de Babel</title></svelte:head>
 
 <section class="ir">
-	<h1>Ir a una dirección</h1>
-	<p class="lede">
-		Pega lo que tengas: el nombre o el enlace de una sala, o la dirección de una página. Si quieres,
-		completa el muro, la balda, el libro y la página.
+	<h1>Ir al azar</h1>
+	<p class="hint">
+		Cada sala tiene cuatro muros con cinco baldas, 32 libros por balda y 410 páginas por libro.
 	</p>
-	<AddressBox />
-
-	<section class="chance" use:melt={{ delay: 300 }}>
-		<h2>O al azar</h2>
-		<p class="hint">
-			Cada sala tiene cuatro muros con cinco baldas, 32 libros por balda y 410 páginas por libro.
-		</p>
-		<div class="ways">
-			<figure>
+	<div class="ways">
+		<figure>
+			<button
+				type="button"
+				class="icon"
+				tabindex="-1"
+				aria-hidden="true"
+				onclick={() => go('room')}
+			>
 				<svg viewBox="0 0 120 120" aria-hidden="true">
 					{#each [0, 1, 2, 3, 4, 5] as k (k)}
 						{@const a = (Math.PI / 3) * k}
@@ -77,22 +76,39 @@
 					{/each}
 					<circle class="ink fine" cx="60" cy="60" r="8" />
 				</svg>
-				<InkLink onclick={() => go('room')}>Una sala al azar</InkLink>
-				<figcaption>Para escoger tú el muro, la balda, el libro y la página.</figcaption>
-			</figure>
-			<figure>
+			</button>
+			<InkLink onclick={() => go('room')}>Una sala al azar</InkLink>
+			<figcaption>Para escoger tú el muro, la balda, el libro y la página.</figcaption>
+		</figure>
+		<figure>
+			<button
+				type="button"
+				class="icon"
+				tabindex="-1"
+				aria-hidden="true"
+				onclick={() => go('page')}
+			>
 				<svg viewBox="0 0 120 120" aria-hidden="true">
 					<path class="ink" d="M34 18 h46 l14 14 v70 h-60 z M80 18 v14 h14" />
 					{#each [40, 48, 56, 64, 72, 80, 88] as y (y)}
 						<line class="ink fine" x1="42" x2={y % 16 ? 84 : 76} y1={y} y2={y} />
 					{/each}
 				</svg>
-				<InkLink onclick={() => go('page')}>Una página al azar</InkLink>
-				<figcaption>Una dirección cualquiera, y su página.</figcaption>
-			</figure>
-		</div>
-		{#if busy}<p class="busy" role="status">{busy}</p>{/if}
-		{#if error}<p class="error" role="alert">{error}</p>{/if}
+			</button>
+			<InkLink onclick={() => go('page')}>Una página al azar</InkLink>
+			<figcaption>Una dirección cualquiera, y su página.</figcaption>
+		</figure>
+	</div>
+	{#if busy}<p class="busy" role="status">{busy}</p>{/if}
+	{#if error}<p class="error" role="alert">{error}</p>{/if}
+
+	<section class="address" use:melt={{ delay: 300 }}>
+		<h2>O a una dirección</h2>
+		<p class="lede">
+			Pega lo que tengas: el nombre o el enlace de una sala, o la dirección de una página. Si
+			quieres, completa el muro, la balda, el libro y la página.
+		</p>
+		<AddressBox />
 	</section>
 </section>
 
@@ -113,7 +129,7 @@
 		font-size: 1.12rem;
 		max-width: 36rem;
 	}
-	.chance {
+	.address {
 		display: flex;
 		flex-direction: column;
 		gap: 1.2rem;
@@ -145,9 +161,23 @@
 		text-align: center;
 		gap: 0.4rem;
 	}
+	/* the drawing takes you too, and the way under it answers as if it were hovered */
+	.icon {
+		padding: 0;
+		border: 0;
+		background: none;
+		cursor: pointer;
+	}
 	svg {
+		display: block;
 		width: 6rem;
 		height: 6rem;
+	}
+	figure:has(.icon:hover) :global(.way) {
+		transform: scale(1.07);
+	}
+	figure:has(.icon:hover) :global(.way svg) {
+		clip-path: inset(-50% 0 -50% 0);
 	}
 	.ink {
 		fill: none;

@@ -195,11 +195,11 @@
 		padding: 0.15rem 0.2rem;
 		text-align: center;
 	}
+	/* the page chosen first; under it, one left to chance */
 	.actions {
 		display: flex;
-		flex-wrap: wrap;
-		gap: 0.6rem 1.4rem;
-		justify-content: center;
-		align-items: baseline;
+		flex-direction: column;
+		gap: 0.5rem;
+		align-items: center;
 	}
 </style>

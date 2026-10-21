@@ -118,10 +118,6 @@
 			{/key}
 		{/if}
 	</div>
-
-	<div class="elsewhere">
-		<InkLink small href={resolve('/ir')}>Ir a otro sitio</InkLink>
-	</div>
 </section>
 
 <style>
@@ -168,9 +164,5 @@
 		margin: 0;
 		font: italic 1.1rem var(--display);
 		color: var(--ink-dry);
-	}
-	.elsewhere {
-		display: flex;
-		justify-content: center;
 	}
 </style>
