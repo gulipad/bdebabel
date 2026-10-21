@@ -1,6 +1,6 @@
 <script lang="ts">
 	import '../app.css';
-	import { untrack } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { goto, onNavigate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
@@ -17,6 +17,21 @@
 	import type { LayoutProps } from './$types';
 
 	let { children }: LayoutProps = $props();
+	let stars = $state<number | null>(null);
+	onMount(() => {
+		fetch('https://api.github.com/repos/gulipad/bdebabel')
+			.then((response) => {
+				if (!response.ok) throw new Error('GitHub');
+				return response.json();
+			})
+			.then((repo) => {
+				if (Number.isInteger(repo.stargazers_count) && repo.stargazers_count >= 0)
+					stars = repo.stargazers_count;
+			})
+			.catch(() => {
+				// The repository link still works when GitHub cannot provide the count.
+			});
+	});
 
 	/** the cover draws its own sheet over the whole screen, and leaves by melting away on its own */
 	const onCover = $derived(page.route.id === '/');
@@ -82,6 +97,11 @@
 </svelte:head>
 
 <Inks />
+<a class="github" href="https://github.com/gulipad/bdebabel" target="_blank" rel="noreferrer">
+	GitHub{#if stars !== null}<span aria-label={`${stars} estrellas`}
+			>★ {stars.toLocaleString('es')}</span
+		>{/if}
+</a>
 <Handheld>
 	{#if !recording}<SoundToggle />{/if}
 
@@ -111,10 +131,30 @@
 </Handheld>
 
 <style>
+	.github {
+		position: fixed;
+		top: calc(0.9rem + env(safe-area-inset-top, 0px));
+		right: calc(0.9rem + env(safe-area-inset-right, 0px));
+		z-index: 50;
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		min-height: 2.6rem;
+		padding: 0.35rem 0.65rem;
+		border: 1px solid var(--rule);
+		background: var(--paper);
+		font: 0.86rem var(--display-sc);
+		letter-spacing: 0.12em;
+		text-decoration: none;
+	}
+	.github:hover {
+		border-color: var(--sepia);
+	}
+
 	.city {
 		max-width: 46rem;
 		margin: 0 auto;
-		padding-block: 1.6rem 5rem;
+		padding-block: 4.8rem 5rem;
 		padding-left: max(16px, env(safe-area-inset-left, 0px));
 		padding-right: max(16px, env(safe-area-inset-right, 0px));
 		display: flex;
