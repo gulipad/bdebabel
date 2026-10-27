@@ -138,6 +138,8 @@
 	const SEPIA: [number, number, number] = [92, 58, 34];
 	const IRON_GALL: [number, number, number] = [40, 28, 20];
 
+	/** ms the cover waits for its faces before inking in without them */
+	const FONTS_MS = 3000;
 	/** the faces the lettering needs, loading; and which render is the latest (an older one stops when it sees) */
 	let fonts: Promise<unknown> = Promise.resolve(),
 		generation = 0;
@@ -1044,7 +1046,12 @@
 				meltIn(stage, 650);
 			}, 220);
 		};
-		fonts = Promise.all(PLANO_FONTS.map((f) => document.fonts.load(f).catch(() => null)));
+		// (not for ever: a browser inside an app, X's, can leave the font files hanging, and the cover stayed bare
+		// paper; after FONTS_MS it inks in with what it has)
+		fonts = Promise.race([
+			Promise.all(PLANO_FONTS.map((f) => document.fonts.load(f).catch(() => null))),
+			new Promise((r) => setTimeout(r, FONTS_MS))
+		]);
 		// with reduced motion the lettering is simply there, and stays (on a desktop: a phone or a tablet melts
 		// it in anyway, as it always melted away)
 		still = matchMedia('(prefers-reduced-motion: reduce)').matches && !handheld();
