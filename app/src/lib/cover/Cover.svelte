@@ -10,11 +10,11 @@
 	 * clearing melts in (a dark pool of ink with the title left unstained in it; on a phone, the title alone); a
 	 * little later the galleries' bands begin, and the ways into the city appear under the title.
 	 * Within the clearing the pointer is gentler: it takes single words from its lines, and only a little from
-	 * the heart.
+	 * the heart. The cover is lettered in the language of its edition (/ or /en), and its ways lead within it.
 	 */
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { resolve } from '$app/paths';
+	import { COMMON, lang as current, pathTo } from '#lib/i18n.ts';
 	import {
 		boardTransform,
 		EXCERPTS,
@@ -40,6 +40,7 @@
 	import { handheld } from '#lib/ui/device.ts';
 	import { meltAway, meltIn } from '#lib/ui/melt.ts';
 	import { showPaper } from '#lib/ui/paper.ts';
+	import LangSwitch from '#lib/ui/LangSwitch.svelte';
 	import { hasMovedWithin } from '#lib/ui/visit.ts';
 
 	let canvas: HTMLCanvasElement, stage: HTMLDivElement;
@@ -70,13 +71,19 @@
 		CREEP_MS = 30000, // ms for the pool's edge to creep round and back to where it was
 		DRIFT = 0.5; // how far its edge's noise flows (lattice cells, the radius of its circle)
 
+	/** the cover's language (each edition has its own cover, so it is the same for as long as this one is up) */
+	const lang = current();
 	/** the ways into the city, under the title */
-	const WAYS = [
-		{ name: 'Teoría', to: '/teoria' },
-		{ name: 'Buscar', to: '/buscar' },
-		{ name: 'Ir', to: '/ir' }
-	] as const;
-	type Way = (typeof WAYS)[number]['to'];
+	const WAYS = (['theory', 'search', 'go'] as const).map((w) => ({
+		name: COMMON[lang].ways[w],
+		to: pathTo(w, lang)
+	}));
+	/** where a way leads (a path, resolved): one of the ways, or the other edition's cover */
+	type Way = string;
+	const PLAN_LABEL = {
+		es: 'Plano de las galerías de la Biblioteca de Babel',
+		en: 'Plan of the galleries of the Library of Babel'
+	};
 	/** reaching the cover from inside the city: no entrance, everything melts in at once, quickly */
 	const returning = hasMovedWithin();
 	const RETURN_MS = 1400;
@@ -159,7 +166,7 @@
 		const video = location.hash.includes('video');
 		// on a phone or a tablet (or with #limpio), the clean cover: the title written in ink alone, no pool
 		plain = handheld() || location.hash.includes('limpio');
-		const scene = planoScene({ ways: !video });
+		const scene = planoScene({ ways: !video, lang });
 		const rnd = seeded(1941);
 		const paper = makePaper(w, h, { scale: dpr });
 		const bare = sheet(w, h);
@@ -843,8 +850,8 @@
 					const g = free[Math.floor(Math.random() * free.length)];
 					// an excerpt not on the sheet now nor shown lately
 					const showing = bands.map((b) => scene.lettering[b.g].ring.t),
-						fresh = EXCERPTS.filter((t) => !showing.includes(t) && !said.includes(t));
-					const t = fresh[Math.floor(Math.random() * fresh.length)] ?? EXCERPTS[0];
+						fresh = EXCERPTS[lang].filter((t) => !showing.includes(t) && !said.includes(t));
+					const t = fresh[Math.floor(Math.random() * fresh.length)] ?? EXCERPTS[lang][0];
 					said = [t, ...said].slice(0, 10);
 					reletter(g, t);
 					const last = Math.max(-Infinity, ...bands.map((b) => b.start)),
@@ -898,7 +905,8 @@
 			if (leaving && now - leaveAt >= outGoes) {
 				const to = leaving;
 				leaving = null;
-				goto(resolve(to));
+				// eslint-disable-next-line svelte/no-navigation-without-resolve -- the ways' paths are resolved (pathTo)
+				goto(to);
 				return;
 			}
 			if (!still || worn || lineTouch.on || heartTouch.on) raf = requestAnimationFrame(frame);
@@ -1081,7 +1089,7 @@
 </script>
 
 <div class="stage" bind:this={stage}>
-	<canvas bind:this={canvas} aria-label="Plano de las galerías de la Biblioteca de Babel"></canvas>
+	<canvas bind:this={canvas} aria-label={PLAN_LABEL[lang]}></canvas>
 	<!-- the ways melt in like the ink: a blotchy, grainy noise that passes a threshold rising with `waysIn` -->
 	<svg class="defs" aria-hidden="true">
 		<filter id="ways-melt" x="-10%" y="-20%" width="120%" height="140%">
@@ -1115,6 +1123,8 @@
 			</button>
 		{/each}
 	</nav>
+	<!-- the other edition, by the music's switch (the cover recorded for video has neither) -->
+	{#if !location.hash.includes('video')}<LangSwitch corner onpick={take} />{/if}
 </div>
 
 <style>

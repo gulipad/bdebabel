@@ -1,4 +1,5 @@
 /** Display helpers for addresses. The real arithmetic (scrambling, numbers) lives in the frozen engine. */
+import type { Lang } from './i18n.ts';
 
 export interface Location {
 	universe: string;
@@ -9,7 +10,10 @@ export interface Location {
 	page: number;
 }
 
-/** Splits babel-1:<hexágono>:<muro>:<balda>:<volumen>:<página>; null if it is not shaped like one. */
+/**
+ * Splits babel-1:<hexágono>:<muro>:<balda>:<volumen>:<página> (or babel-en-1:…, any universe's); null if it is
+ * not shaped like one.
+ */
 export function locate(address: string): Location | null {
 	const parts = address.trim().split(':');
 	if (parts.length !== 6 || !/^[0-9A-Za-z]+$/.test(parts[1])) return null;
@@ -41,9 +45,12 @@ export const WALLS = 4,
 /** The characters on a page: no sentence longer than this can be on one. */
 export const PAGE_CHARS = 3200;
 
-/** Spanish thousands separator, as in "2.282 pasos". */
-const ES = new Intl.NumberFormat('es-ES', { useGrouping: 'always' });
-export const steps = (n: number) => ES.format(n);
+/** Each language's thousands separator, as in "2.282 pasos" and "2,282 steps". */
+const NUMBERS: Record<Lang, Intl.NumberFormat> = {
+	es: new Intl.NumberFormat('es-ES', { useGrouping: 'always' }),
+	en: new Intl.NumberFormat('en-GB', { useGrouping: 'always' })
+};
+export const steps = (n: number, lang: Lang = 'es') => NUMBERS[lang].format(n);
 
 /** A fresh seed for the reader's random walk. */
 export const seed = () => crypto.randomUUID();
@@ -77,9 +84,14 @@ export interface PlaceParts {
 /**
  * Reads whatever someone has for a place, without judging it: a full address, an address cut short
  * (babel-1:<sala>:2:4), a room's name on its own, or the link to a room or a page, with or without its
- * query. Without a universe, it is `universe`. Null only when there is nothing there, or too many parts.
+ * query, in either language. Without a universe, it is `universe`; a link to a room of the English edition
+ * (/en/room/…) is in `english`, when it is given. Null only when there is nothing there, or too many parts.
  */
-export function placeParts(input: string, universe = 'babel-1'): PlaceParts | null {
+export function placeParts(
+	input: string,
+	universe = 'babel-1',
+	english = universe
+): PlaceParts | null {
 	let text = input.trim();
 	if (!text) return null;
 	let query = new URLSearchParams();
@@ -98,18 +110,20 @@ export function placeParts(input: string, universe = 'babel-1'): PlaceParts | nu
 		/* left as it is */
 	}
 	text = text.replace(/\s+/g, '');
-	const phrase = query.get('frase') || undefined;
+	// (each edition's links carry their query in its own words)
+	const get = (es: string, en: string) => query.get(es) ?? query.get(en);
+	const phrase = get('frase', 'phrase') || undefined;
 	const n = (v: string | null | undefined) => (v ? Number(v) : undefined);
-	// a room's link: /sala/<sala>?muro=…&balda=…&volumen=…&pagina=…
-	const room = text.match(/(?:^|\/)sala\/([^/]+)\/?$/);
+	// a room's link: /sala/<sala>?muro=…&balda=…&volumen=…&pagina=…, or /en/room/<room>?wall=…&shelf=…
+	const room = text.match(/(?:^|\/)(?:sala|room)\/([^/]+)\/?$/);
 	if (room)
 		return {
-			universe,
+			universe: /(?:^|\/)en\/room\//.test(text) ? english : universe,
 			hexagon: room[1],
-			wall: n(query.get('muro')),
-			shelf: n(query.get('balda')),
-			volume: n(query.get('volumen')),
-			page: n(query.get('pagina')),
+			wall: n(get('muro', 'wall')),
+			shelf: n(get('balda', 'shelf')),
+			volume: n(get('volumen', 'volume')),
+			page: n(get('pagina', 'page')),
 			phrase
 		};
 	// an address, whole or cut short, possibly the last part of a page's link
@@ -132,19 +146,19 @@ export function placeParts(input: string, universe = 'babel-1'): PlaceParts | nu
 export const strangers = (hexagon: string) =>
 	[...new Set(hexagon.replace(/[0-9A-Za-z]/g, ''))].join('');
 
-/** The measures each part of a place must fall within: name, largest value. */
+/** The measures each part of a place must fall within: which part, and its largest value. */
 export const MEASURES = [
-	['wall', 'El muro', WALLS],
-	['shelf', 'La balda', SHELVES],
-	['volume', 'El volumen', VOLUMES],
-	['page', 'La página', PAGES]
+	['wall', WALLS],
+	['shelf', SHELVES],
+	['volume', VOLUMES],
+	['page', PAGES]
 ] as const;
 
 /** A place that holds up: a room that can exist, and parts within their measures. Null if not. */
 export function parsePlace(input: string, universe = 'babel-1'): Place | null {
 	const p = placeParts(input, universe);
 	if (!p || !ROOM.test(p.hexagon) || !UNIVERSE.test(p.universe)) return null;
-	for (const [key, , max] of MEASURES) {
+	for (const [key, max] of MEASURES) {
 		const v = p[key];
 		if (v !== undefined && !(Number.isInteger(v) && v >= 1 && v <= max)) return null;
 	}

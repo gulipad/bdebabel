@@ -5,6 +5,7 @@
 	 * wall of the same room. A book is chosen by clicking it.
 	 */
 	import { SHELVES, VOLUMES } from '#lib/address.ts';
+	import { lang } from '#lib/i18n.ts';
 
 	let {
 		seed,
@@ -17,6 +18,12 @@
 		current?: { shelf: number; volume: number };
 		onpick: (shelf: number, volume: number) => void;
 	} = $props();
+
+	const TEXT = {
+		es: { label: 'El muro y sus libros', shelf: 'Balda', volume: 'volumen' },
+		en: { label: 'The wall and its books', shelf: 'Shelf', volume: 'volume' }
+	};
+	const t = TEXT[lang()];
 
 	const W = 660,
 		SHELF_H = 84,
@@ -55,11 +62,7 @@
 	});
 </script>
 
-<svg
-	viewBox={`0 0 ${W} ${TOP + SHELVES * SHELF_H + 16}`}
-	role="group"
-	aria-label="El muro y sus libros"
->
+<svg viewBox={`0 0 ${W} ${TOP + SHELVES * SHELF_H + 16}`} role="group" aria-label={t.label}>
 	{#each books as shelf, s (s)}
 		{@const floor = TOP + (s + 1) * SHELF_H}
 		<g class="shelf">
@@ -70,12 +73,12 @@
 					class:current={current?.shelf === b.shelf && current?.volume === b.volume}
 					role="button"
 					tabindex="0"
-					aria-label={`Balda ${b.shelf}, volumen ${b.volume}`}
+					aria-label={`${t.shelf} ${b.shelf}, ${t.volume} ${b.volume}`}
 					transform={`rotate(${b.lean} ${b.x + b.w / 2} ${floor})`}
 					onclick={() => onpick(b.shelf, b.volume)}
 					onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && onpick(b.shelf, b.volume)}
 				>
-					<title>Balda {b.shelf} · volumen {b.volume}</title>
+					<title>{`${t.shelf} ${b.shelf} · ${t.volume} ${b.volume}`}</title>
 					<rect class="spine" x={b.x} y={floor - b.h} width={b.w} height={b.h} rx="1.2" />
 					{#each Array.from({ length: b.bands }, (_, i) => i) as i (i)}
 						<line

@@ -2,7 +2,8 @@
 	/**
 	 * Going somewhere: whatever you have of a place (a room's name or link, a page's address or link, an
 	 * address cut short), and then, if you like, the wall, shelf, book and page. It goes as far down as it is
-	 * told: to the page when all four are there, otherwise into the room, at the wall, shelf or book.
+	 * told: to the page when all four are there, otherwise into the room, at the wall, shelf or book. An address or
+	 * a link of the other language's universe goes there, as only that universe has its rooms.
 	 */
 	import { goto } from '$app/navigation';
 	import {
@@ -16,37 +17,79 @@
 		WALLS
 	} from '#lib/address.ts';
 	import { roomLink, withPhrase } from '#lib/browse/links.ts';
+	import { lang } from '#lib/i18n.ts';
 	import InkLink from '#lib/ui/InkLink.svelte';
 	import { enterSubmits } from '#lib/ui/keys.ts';
+	import { langOfUniverse, universeId } from '#lib/universe/client.ts';
+
+	const TEXT = {
+		es: {
+			names: { wall: 'muro', shelf: 'balda', volume: 'volumen', page: 'página' },
+			measures: { wall: 'El muro', shelf: 'La balda', volume: 'El volumen', page: 'La página' },
+			strangers: (list: string) =>
+				`El nombre de una sala sólo lleva letras sin tilde y cifras, y aquí sobra ${list}.`,
+			quote: (c: string) => `«${c}»`,
+			range: (name: string, max: number) => `${name} va de 1 a ${max}.`,
+			nothing: 'No encuentro una sala ni una dirección en eso.',
+			go: 'Ir',
+			label: 'La sala, o la dirección',
+			placeholder: 'la sala, o sala:muro:balda:volumen:página, o un enlace'
+		},
+		en: {
+			names: { wall: 'wall', shelf: 'shelf', volume: 'volume', page: 'page' },
+			measures: { wall: 'The wall', shelf: 'The shelf', volume: 'The volume', page: 'The page' },
+			strangers: (list: string) =>
+				`A room's name has only letters without accents and digits, and ${list} doesn't belong in it.`,
+			quote: (c: string) => `“${c}”`,
+			range: (name: string, max: number) => `${name} goes from 1 to ${max}.`,
+			nothing: "I can't find a room or an address in that.",
+			go: 'Go',
+			label: 'The room, or the address',
+			placeholder: 'the room, or room:wall:shelf:volume:page, or a link'
+		}
+	};
+	const l = lang();
+	const t = TEXT[l];
 
 	let text = $state(''),
 		bad = $state(false),
 		/** the sentence a pasted link asked to mark (?frase=), kept once the link is cut down to the room */
-		phrase = $state<string | undefined>();
+		phrase = $state<string | undefined>(),
+		/** the universe a pasted address or link was of, kept the same way (the other language's, perhaps) */
+		from = $state<string | undefined>();
 	/** the wall, shelf, book and page: filled in from what was pasted, and free to change */
 	let wall = $state<number | null>(null),
 		shelf = $state<number | null>(null),
 		volume = $state<number | null>(null),
 		page = $state<number | null>(null);
-	const parts = $derived(placeParts(text));
+	/** the universe is this language's, so it is written for you: one pasted with it loses it */
+	const UNIVERSE = universeId(l);
+	const partsOf = (s: string) => placeParts(s, from ?? UNIVERSE, universeId('en'));
+	const parts = $derived(partsOf(text));
 	const FIELDS = [
-		{ name: 'muro', max: WALLS, get: () => wall, set: (v: number | null) => (wall = v) },
-		{ name: 'balda', max: SHELVES, get: () => shelf, set: (v: number | null) => (shelf = v) },
-		{ name: 'volumen', max: VOLUMES, get: () => volume, set: (v: number | null) => (volume = v) },
-		{ name: 'página', max: PAGES, get: () => page, set: (v: number | null) => (page = v) }
+		{ name: t.names.wall, max: WALLS, get: () => wall, set: (v: number | null) => (wall = v) },
+		{ name: t.names.shelf, max: SHELVES, get: () => shelf, set: (v: number | null) => (shelf = v) },
+		{
+			name: t.names.volume,
+			max: VOLUMES,
+			get: () => volume,
+			set: (v: number | null) => (volume = v)
+		},
+		{ name: t.names.page, max: PAGES, get: () => page, set: (v: number | null) => (page = v) }
 	];
 
-	/** the universe is always the same, so it is written for you: one pasted with it loses it */
-	const UNIVERSE = 'babel-1';
 	function read(e: Event) {
 		bad = false;
-		const p = placeParts(text);
+		// (an emptied box is back in this language's universe)
+		if (!text.trim()) from = undefined;
+		const p = partsOf(text);
 		// a pasted link or address is cut down to the room's name, and the rest goes into the four below
 		// (only when pasted: an address typed by hand keeps its colons as they come)
 		const pasted = e instanceof InputEvent && /^insertFrom(Paste|Drop)/.test(e.inputType);
 		if (pasted && p && /[/:?]/.test(text)) {
 			text = p.hexagon;
 			phrase = p.phrase;
+			from = p.universe === UNIVERSE ? undefined : p.universe;
 		} else if (text.trimStart().startsWith(`${UNIVERSE}:`))
 			text = text.trimStart().slice(UNIVERSE.length + 1);
 		// what was pasted fills in the four, even when it is out of range (so that is said, below)
@@ -64,16 +107,11 @@
 	const problems = $derived.by(() => {
 		const out: string[] = [];
 		const odd = parts ? strangers(parts.hexagon) : '';
-		if (odd)
-			out.push(
-				`El nombre de una sala sólo lleva letras sin tilde y cifras, y aquí sobra ${[...odd]
-					.map((c) => `«${c}»`)
-					.join(', ')}.`
-			);
+		if (odd) out.push(t.strangers([...odd].map(t.quote).join(', ')));
 		const values = { wall, shelf, volume, page };
-		for (const [key, name, max] of MEASURES) {
+		for (const [key, max] of MEASURES) {
 			const v = values[key];
-			if (v !== null && !(v >= 1 && v <= max)) out.push(`${name} va de 1 a ${max}.`);
+			if (v !== null && !(v >= 1 && v <= max)) out.push(t.range(t.measures[key], max));
 		}
 		return out;
 	});
@@ -92,13 +130,16 @@
 			page: int(page, PAGES)
 		};
 		const { universe, hexagon } = place;
+		// (a place in the other language's universe is in the other language's city)
+		const its = langOfUniverse(universe) ?? l;
 		const to =
 			at.wall && at.shelf && at.volume && at.page
 				? withPhrase(
 						addressIn(universe, hexagon, at.wall, at.shelf, at.volume, at.page),
-						place.phrase ?? phrase
+						place.phrase ?? phrase,
+						its
 					)
-				: roomLink(hexagon, at);
+				: roomLink(hexagon, at, its);
 		// eslint-disable-next-line svelte/no-navigation-without-resolve -- both links resolve their routes
 		goto(to);
 	}
@@ -111,14 +152,14 @@
 	}}
 >
 	<label class="field">
-		<span class="sr">La sala, o la dirección</span>
-		<span class="universe" aria-hidden="true">{UNIVERSE}:</span>
+		<span class="sr">{t.label}</span>
+		<span class="universe" aria-hidden="true">{from ?? UNIVERSE}:</span>
 		<textarea
 			bind:value={text}
 			oninput={read}
 			rows="2"
 			spellcheck="false"
-			placeholder="la sala, o sala:muro:balda:volumen:página, o un enlace"
+			placeholder={t.placeholder}
 			onkeydown={(e) => enterSubmits(e, go)}></textarea>
 		<svg viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true">
 			<path d="M1 5.6 C 24 4.2, 46 7, 66 5.2 S 90 4.8, 99 5.4" />
@@ -147,10 +188,10 @@
 
 	{#each problems as p (p)}<p class="error" role="alert">{p}</p>{/each}
 	{#if bad && !problems.length}
-		<p class="error" role="alert">No encuentro una sala ni una dirección en eso.</p>
+		<p class="error" role="alert">{t.nothing}</p>
 	{/if}
 	<div class="row">
-		<InkLink onclick={go}>Ir</InkLink>
+		<InkLink onclick={go}>{t.go}</InkLink>
 	</div>
 </form>
 

@@ -1,13 +1,29 @@
 <script lang="ts">
 	/** How long an address is, in bits, for the same 3.200 characters: ours, Basile's, and noise in ours. */
 	import { steps } from '#lib/address.ts';
+	import { lang } from '#lib/i18n.ts';
 	import { seen } from '#lib/ui/seen.ts';
 
-	const ROWS = [
-		{ name: 'Una página de esta Biblioteca', bits: 2300, chars: '≈ 390 caracteres' },
-		{ name: 'Una página de la de Basile', bits: 15500, chars: '≈ 3.000 caracteres' },
-		{ name: 'Ruido puro, en esta Biblioteca', bits: 19500, chars: '≈ 3.300 caracteres' }
-	];
+	const TEXT = {
+		es: {
+			rows: [
+				{ name: 'Una página de esta Biblioteca', bits: 2300, chars: '≈ 390 caracteres' },
+				{ name: 'Una página de la de Basile', bits: 15500, chars: '≈ 3.000 caracteres' },
+				{ name: 'Ruido puro, en esta Biblioteca', bits: 19500, chars: '≈ 3.300 caracteres' }
+			],
+			caption: 'Longitud de la dirección de una página de 3.200 caracteres.'
+		},
+		en: {
+			rows: [
+				{ name: 'A page of this Library', bits: 2300, chars: '≈ 385 characters' },
+				{ name: "A page of Basile's", bits: 15500, chars: '≈ 3,000 characters' },
+				{ name: 'Pure noise, in this Library', bits: 19400, chars: '≈ 3,250 characters' }
+			],
+			caption: 'The length of the address of a page of 3,200 characters.'
+		}
+	};
+	const l = lang();
+	const ROWS = TEXT[l].rows;
 	const MAX = 20000;
 	let on = $state(false);
 </script>
@@ -18,11 +34,11 @@
 			<p class="name">{r.name}</p>
 			<div class="track">
 				<span class="bar inked" style:--w={r.bits / MAX} style:--d="{i * 0.35}s"></span>
-				<span class="value">{steps(r.bits)} bits · {r.chars}</span>
+				<span class="value">{steps(r.bits, l)} bits · {r.chars}</span>
 			</div>
 		</div>
 	{/each}
-	<figcaption>Longitud de la dirección de una página de 3.200 caracteres.</figcaption>
+	<figcaption>{TEXT[l].caption}</figcaption>
 </figure>
 
 <style>

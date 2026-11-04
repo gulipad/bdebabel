@@ -4,50 +4,95 @@
 	 * asked. On a desktop nothing, unless the model couldn't come: its download is part of the first search's (or
 	 * page's) wait, which they show themselves.
 	 */
+	import { explain, lang } from '#lib/i18n.ts';
 	import InkLink from '#lib/ui/InkLink.svelte';
+	import { modelMB } from './client.ts';
 	import { door } from './door.svelte.ts';
 
 	const mb = (n: number) => (n / 1e6).toFixed(0);
 	const downloading = $derived(door.progress.stage === 'model' && door.progress.total > 0);
+
+	const TEXT = {
+		es: {
+			arriving: 'Llega el Bibliotecario:',
+			of: 'de',
+			title: 'El Bibliotecario',
+			writes:
+				'Cada página de esta biblioteca la escribe en tu navegador un modelo de lenguaje, el Bibliotecario.',
+			// (what follows why it is needed: in English a comma)
+			then: '',
+			weighs: 'hay que descargarlo una vez: pesa',
+			mobile: 'Si estás con datos móviles, quizá prefieras esperar a tener wifi.',
+			failed: 'No se pudo descargar:',
+			notNow: 'Ahora no',
+			retry: 'Volver a intentarlo',
+			download: 'Descargar',
+			checking: 'Comprobando que es el de siempre…',
+			calling: 'Llamando al Bibliotecario…',
+			closed: 'No se pudo abrir la ciudad:'
+		},
+		en: {
+			arriving: 'The Librarian is coming:',
+			of: 'of',
+			title: 'The Librarian',
+			writes:
+				'Every page of this library is written in your browser by a language model, the Librarian.',
+			then: ',',
+			weighs: 'it has to be downloaded once: it weighs',
+			mobile: 'If you are on mobile data, you may prefer to wait until you have wifi.',
+			failed: 'It could not be downloaded:',
+			notNow: 'Not now',
+			retry: 'Try again',
+			download: 'Download',
+			checking: 'Checking that it is the same as ever…',
+			calling: 'Calling the Librarian…',
+			closed: 'The city could not be opened:'
+		}
+	};
+	const t = $derived(TEXT[lang()]);
 </script>
 
 {#snippet arriving()}
-	Llega el Bibliotecario: {mb(door.progress.loaded)} de {mb(door.progress.total)} MB
+	{t.arriving}
+	{mb(door.progress.loaded)}
+	{t.of}
+	{mb(door.progress.total)} MB
 	<span class="bar" style:--done={door.progress.loaded / door.progress.total}></span>
 {/snippet}
 
 {#if door.popup !== 'closed'}
 	<div class="veil">
 		<div class="popup" role="dialog" aria-modal="true" aria-labelledby="door-title">
-			<h2 id="door-title">El Bibliotecario</h2>
+			<h2 id="door-title">{t.title}</h2>
 			<p>
-				Cada página de esta biblioteca la escribe en tu navegador un modelo de lenguaje, el
-				Bibliotecario. {door.why} hay que descargarlo una vez: pesa 77 MB.
+				{t.writes}
+				{door.why}{t.then}
+				{t.weighs}
+				{modelMB()} MB.
 			</p>
-			<p class="aside">Si estás con datos móviles, quizá prefieras esperar a tener wifi.</p>
+			<p class="aside">{t.mobile}</p>
 			{#if door.popup === 'ask'}
-				{#if door.error}<p class="error" role="alert">No se pudo descargar: {door.error}</p>{/if}
+				{#if door.error}<p class="error" role="alert">{t.failed} {explain(door.error)}</p>{/if}
 				<div class="row">
-					<InkLink small onclick={() => door.notNow()}>Ahora no</InkLink>
-					<InkLink onclick={() => door.come()}
-						>{door.error ? 'Volver a intentarlo' : 'Descargar'}</InkLink
-					>
+					<InkLink small onclick={() => door.notNow()}>{t.notNow}</InkLink>
+					<InkLink onclick={() => door.come()}>{door.error ? t.retry : t.download}</InkLink>
 				</div>
 			{:else}
 				<p class="status" role="status">
 					{#if downloading}
 						{@render arriving()}
 					{:else if door.progress.stage === 'verify' || door.progress.stage === 'ready'}
-						Comprobando que es el de siempre…
+						{t.checking}
 					{:else}
-						Llamando al Bibliotecario…
+						{t.calling}
 					{/if}
 				</p>
 			{/if}
 		</div>
 	</div>
-{:else if door.error}
-	<p class="error" role="alert">No se pudo abrir la ciudad: {door.error}</p>
+	<!-- (a universe not there yet is said by the places that need it, not on every page) -->
+{:else if door.error && !door.absent}
+	<p class="error" role="alert">{t.closed} {door.error}</p>
 {/if}
 
 <style>

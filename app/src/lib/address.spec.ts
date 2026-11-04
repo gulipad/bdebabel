@@ -105,3 +105,33 @@ describe('placeParts and strangers', () => {
 		expect(strangers('2bwWz7')).toBe('');
 	});
 });
+
+describe('the English edition', () => {
+	it('writes distances the English way', () => {
+		expect(steps(2282, 'en')).toBe('2,282');
+	});
+	it('reads English addresses and the links to English rooms, with their own query words', () => {
+		expect(parsePlace('babel-en-1:2bwWz7:4:1:1:399')).toMatchObject({
+			universe: 'babel-en-1',
+			hexagon: '2bwWz7',
+			page: 399
+		});
+		expect(
+			placeParts(
+				'https://example.org/en/room/2bwWz7?wall=3&shelf=5&phrase=I+love+you',
+				'babel-1',
+				'babel-en-1'
+			)
+		).toMatchObject({
+			universe: 'babel-en-1',
+			hexagon: '2bwWz7',
+			wall: 3,
+			shelf: 5,
+			phrase: 'I love you'
+		});
+		expect(placeParts('/sala/2bwWz7?muro=2', 'babel-1', 'babel-en-1')).toMatchObject({
+			universe: 'babel-1',
+			wall: 2
+		});
+	});
+});

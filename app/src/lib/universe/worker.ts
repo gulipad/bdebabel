@@ -13,15 +13,16 @@ import type {
 	ModelIndex,
 	Rings
 } from './frozen';
-import type {
-	PageResult,
-	Request,
-	RoomResult,
-	SearchPage,
-	Stage,
-	UniverseInfo,
-	WorkerMessage
-} from './protocol';
+import {
+	ABSENT,
+	type PageResult,
+	type Request,
+	type RoomResult,
+	type SearchPage,
+	type Stage,
+	type UniverseInfo,
+	type WorkerMessage
+} from './protocol.ts';
 
 import { Sha256 } from './sha256.ts';
 
@@ -165,7 +166,10 @@ async function verified(
 
 async function init(base: string): Promise<UniverseInfo> {
 	progress('manifest');
-	const manifest = (await (await fetch(new URL('manifest.json', base))).json()) as Manifest;
+	// a universe not published yet: there is no manifest (the server answers with the city's own page instead)
+	const found = await fetch(new URL('manifest.json', base));
+	if (!found.ok || !/json/.test(found.headers.get('Content-Type') ?? '')) throw new Error(ABSENT);
+	const manifest = (await found.json()) as Manifest;
 	const rings = (await (await fetch(new URL('rings.json', base))).json()) as Rings;
 	const files = manifest.files;
 
@@ -227,8 +231,9 @@ const ROOM_BITS = 4096;
 const bitsOf = (n: bigint) => (n === 0n ? 0 : n.toString(2).length);
 
 function ringOf(bits: number): string {
-	for (const r of need().rings.rings) if (r.until === null || bits <= r.until) return r.name;
-	return 'El Vacío';
+	const rings = need().rings.rings;
+	for (const r of rings) if (r.until === null || bits <= r.until) return r.name;
+	return rings.at(-1)!.name;
 }
 
 /** The page at a number, under its canonical (shortest) address. */

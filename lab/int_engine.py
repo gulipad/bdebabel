@@ -25,7 +25,7 @@ matters for all-zero rows, which are guarded).
     uv run lab/int_engine.py build lab/models/bidir-66m-avg3    # -> <model>/int8.npz
     uv run lab/int_engine.py check lab/models/bidir-66m-avg3    # vs the float model: logits and bits/char
 """
-import json, math, sys
+import os, json, math, sys
 from pathlib import Path
 
 import numpy as np
@@ -254,12 +254,12 @@ def main():
         from tokenizers import ByteLevelBPETokenizer
         sys.path.insert(0, str(ROOT / "lab")); from train_data import pages_of
         tok = ByteLevelBPETokenizer(str(folder / "vocab.json"), str(folder / "merges.txt")); eos = tok.token_to_id("<|endoftext|>")
-        page = pages_of(ROOT / "data/lit/val.bin", eos)[0]
+        page = pages_of(Path(os.environ.get("LIT") or ROOT / "data/lit") / "val.bin", eos)[0]
         x = np.concatenate([[eos], page[:47]]).astype(np.int64)
         z = Engine(M).forward(x)
         (out / "golden.json").write_text(json.dumps({"tokens": x.tolist(), "logits": z.tolist()}))
         # long check: 400 positions of a real page, one SHA-256 per position of its int32 logits
-        page = pages_of(ROOT / "data/lit/val.bin", eos)[1]
+        page = pages_of(Path(os.environ.get("LIT") or ROOT / "data/lit") / "val.bin", eos)[1]
         xl = np.concatenate([[eos], page[:399]]).astype(np.int64)
         zl = Engine(M).forward(xl)
         hashes = [hashlib.sha256(r.astype("<i4").tobytes()).hexdigest() for r in zl]
@@ -275,7 +275,7 @@ def main():
         E = Engine(dict(np.load(folder / "int8.npz")))
         tok = ByteLevelBPETokenizer(str(folder / "vocab.json"), str(folder / "merges.txt")); eos = tok.token_to_id("<|endoftext|>")
         m = S.Student(Config()); m.load_weights(str(folder / "model.safetensors"), strict=True)
-        pages = pages_of(ROOT / "data/lit/val.bin", eos)[: int(sys.argv[3]) if len(sys.argv) > 3 else 12]
+        pages = pages_of(Path(os.environ.get("LIT") or ROOT / "data/lit") / "val.bin", eos)[: int(sys.argv[3]) if len(sys.argv) > 3 else 12]
         tot = {"float": 0.0, "int": 0.0}; chars = 0; agree = n = 0
         for pg in pages:
             seq = np.concatenate([[eos], pg]); x, y = seq[:-1], seq[1:]

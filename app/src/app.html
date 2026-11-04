@@ -2,6 +2,34 @@
 <html lang="es">
 	<head>
 		<meta charset="utf-8" />
+		<script>
+			// The bare cover opens in the reader's language: their own choice if they made one on the cover (ES · EN),
+			// else the first of their browser's languages that is Spanish (or Catalan, Galician, Basque) or English;
+			// any other, English. Only "/" is redirected: a link to a page, a room or the English cover is followed as is.
+			(function () {
+				if (location.pathname !== '/') return;
+				var pick = null;
+				try {
+					pick = localStorage.getItem('babel:lang');
+				} catch (e) {}
+				if (!pick) {
+					pick = 'en';
+					var ls =
+						navigator.languages && navigator.languages.length
+							? navigator.languages
+							: [navigator.language || ''];
+					for (var i = 0; i < ls.length; i++) {
+						var l = String(ls[i]).toLowerCase().slice(0, 2);
+						if (l === 'es' || l === 'ca' || l === 'gl' || l === 'eu') {
+							pick = 'es';
+							break;
+						}
+						if (l === 'en') break;
+					}
+				}
+				if (pick === 'en') location.replace('/en' + location.search + location.hash);
+			})();
+		</script>
 		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 		<meta name="text-scale" content="scale" />
 		<meta name="theme-color" content="#efe0bf" />

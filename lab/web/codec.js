@@ -1,4 +1,4 @@
-// The Library in integer arithmetic (universe babel-1): every page has one address, the exact rANS
+// The Library in integer arithmetic (universes babel-1 and babel-en-1): every page has one address, the exact rANS
 // encoding of its text under the integer engine's distribution. Ports lab/lm_library.py rule for rule:
 // trimmed vocabulary, repetition penalty, dialogue and paragraph nudges, word penalties, loop breaker,
 // min-p, a +1 floor for every token that fits, an escape slot to a character writer, most-likely-first
@@ -42,6 +42,10 @@ export class Library {
     this.fbCsum = []; let c = 0; for (const w of fb.weights) { c += w; this.fbCsum.push(c); }
     this.fbIndex = new Map(fb.chars.map((ch, i) => [ch, i]));
     this.alphabet = new Set(Array.from(tables.alphabet));
+    // how speech opens (a paragraph the paragraph nudge leaves alone), and what else a search draft may start with
+    // besides a capital: the English Library's tables say “ and ‘; Spanish (babel-1) has no entry and these defaults
+    this.speech = tables.speech ?? "—-–«\"";
+    this.starts = tables.starts ?? "—-«¿¡\"“";
   }
 
   // --- the character writer ---
@@ -114,7 +118,7 @@ export class Library {
         para = t + para; i -= 1;
       }
       const st = para.trim(), ls = para.replace(/^\s+/, "");
-      if (st.length > 0 && st.length < s.paragraphMin && !/^[—\-–«"]/.test(ls)) for (let k = 0; k < K; k++) if (this.breaks_line[k]) zz[k] -= s.paragraph;
+      if (st.length > 0 && st.length < s.paragraphMin && !this.speech.includes(ls[0])) for (let k = 0; k < K; k++) if (this.breaks_line[k]) zz[k] -= s.paragraph;
     }
     let zmax = -Infinity;
     for (let k = 0; k < K; k++) if (this.lens[k] <= remaining && zz[k] > zmax) zmax = zz[k];
@@ -332,7 +336,7 @@ Library.prototype.search = function (query, seed, { n = 8, bridge = 96 } = {}) {
     for (const [b, logq, joined] of drafts) {
       if (!joined) { rejected++; continue; }
       const first = this.textOf(b.concat(qToks)).replace(/^ +/, "");
-      if (!first || !(first[0] !== first[0].toLowerCase() || "—-«¿¡\"“".includes(first[0]))) { rejected++; continue; }
+      if (!first || !(first[0] !== first[0].toLowerCase() || this.starts.includes(first[0]))) { rejected++; continue; }
       const headText = farText + this.textOf(b);
       const canon = this.canonical(headText + q).slice(0, far.length + b.length);
       if (canon.length !== far.length + b.length || canon.some((t, i) => t !== far.concat(b)[i])) { rejected++; continue; }

@@ -7,7 +7,7 @@ Bits/char of a student model folder (and of averages of its last snapshots) on d
 
     uv run lab/avg_eval.py lab/models/control-66m model epoch15 epoch14 [--save name] [--r2l]
 """
-import argparse, math, sys
+import argparse, math, os, sys
 from pathlib import Path
 
 import mlx.core as mx
@@ -28,7 +28,7 @@ def main():
     ap.add_argument("--save", help="write the average of all snapshots to <folder>/../<save>/")
     ap.add_argument("--r2l", action="store_true", help="also score right-to-left on val")
     a = ap.parse_args()
-    d = Path(a.folder); data = ROOT / "data/lit"
+    d = Path(a.folder); data = Path(os.environ.get("LIT") or ROOT / "data/lit")  # LIT=data/lit-en for English
     tok = ByteLevelBPETokenizer(str(d / "vocab.json"), str(d / "merges.txt"))
     eos, r2l = tok.token_to_id("<|endoftext|>"), tok.token_to_id("<|r2l|>")
     sets = {"val": pages_of(data / "val.bin", eos), "heldout": pages_of(data / "heldout.bin", eos)}

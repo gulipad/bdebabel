@@ -1,0 +1,74 @@
+{
+ "id": "babel-en-1",
+ "description": "The English Library. Ordered by librarian-en-1, our own 66M model (trained from scratch on 146k pages of English fiction by authors born in 1880 or later, from Project Gutenberg, cleaned of book furniture and judged for explicit content; forward and 25% backward; average of its final weights and last 3 snapshots), int8 integer engine bit-exact on any device; babel-1's sampling rules in integer form, with English dialogue marks and Gutenberg's bracketed page marks and glued chapter headings made remote; codec rans-int-1 with per-piece canonical tokenization; search drafts backwards into the query; scrambled base-62 addresses",
+ "frozen": "2026-11-04T17:10:44.776Z",
+ "status": "integer engine: bit-exact on any device (numpy reference lab/int_engine.py, browser WebAssembly)",
+ "source_model": {
+  "name": "librarian-en-1",
+  "folder": "lab/models/librarian-en-1",
+  "sha256": "49ef5e88a20a098e78e3923dc708c2e4effad47aff8b394f2703ed25595f9423"
+ },
+ "engine": "int8-1",
+ "codec": "rans-int-1",
+ "address": "b62-feistel-1",
+ "page_chars": 3200,
+ "settings": {
+  "penalty": [
+   13,
+   10
+  ],
+  "window": 128,
+  "dialogue": 4096,
+  "paragraph": 6144,
+  "paragraphMin": 200,
+  "avoid": 24576,
+  "violence": 24576,
+  "profanity": 12288,
+  "loop": 16384,
+  "minP": 16024
+ },
+ "scramble_key": "001312a630206228275deb13c9cec8ded5ec5361073f035f4a979af6f77e0001",
+ "files": {
+  "model/model.bin": "1349ed30ed8aa17471aa05ba24929d4cb848ad7540852bc267948cb0ef7a6053",
+  "model/model.json": "218682cbba77c453e9f4c244b8efb6d0f74386922c6b170a4909b03ea707aeab",
+  "model/engine.wasm": "e8dea5f63023da4540548aefe5d4d2cf6cb5b19bced46788eed361592ea77dd8",
+  "model/library.json": "8cc625f18c04fd2c61097e198db7a790011206fe89c29e50e8ec6327f942b55f",
+  "engine/engine.wat": "4b54650fd65bc7c4fcf0e2d37f352f67711d6b8b5742587117f9e7be8f2586f4",
+  "engine/fast.js": "ff514f0c052e88dc00b4db5dfb3e6d28416a16e11a94d51c489f4b5ef90d2c46",
+  "engine/codec.js": "462acfd878c2c5316caed69870ec3b103cf1bbf44a21d62108bb6e0ca8291f67",
+  "engine/bpe.js": "6186ca2fa50e3e879580e0bb86cbb59736d56bf87c421ed37fd0a3e58db146ab",
+  "engine/address.js": "cb5dad046b43692369d0c1dd0e3c5cfea3f7e5fecd89dfbcfe4bb58c3fa3b2c2"
+ },
+ "fixtures": [
+  {
+   "kind": "center",
+   "number": "0",
+   "address": "babel-en-1:0:1:1:1:1",
+   "sha256": "c256c1fe2cffeffe2b734bbfe1382b82256d05a1d8e18102ab86bde319aa7eef",
+   "bits": 0,
+   "text_start": "“I’m sorry, sir,” said the man, “but I’m afraid I’m not very well. I’m not a bit strong. I’m not a bit of a doctor, sir, and I’m not a bit of a surgeon. I’m a m"
+  },
+  {
+   "kind": "random",
+   "seed": "fixture-0",
+   "address": "babel-en-1:Hmvv7goWYuxPzfoBFqhu8DngXGKq2wdmtZnDC6eUL65ukjHeJEIfbzWAgycByFTtS6VU4ImBnQVWpYEpEjQg89wAgrZfOtDEEoK38VMVMTxZTYq5kZlFKHmghgwDt7Ge7hzcJXg335Km6sFssfBMl6syRW3HHWwdF5rFPfxLfnGFmCZI5QW8rNmf9yILUtvFfb38RuDpfw0ojXdnOYryUSE252INJbnWdMxldUwvPtKveHETHTKBKwMNK9bhmNhrwh6j0GMPXcKwfun8C0qeE7aRlnyRuAM1gWGtSpVsXMRdtSRscIxsq2xawMuJLRo6Mgz6x5tA1vosLmgDqbg7f1pdW9LnSgY3R5sQFwFv5BCptSa9xzx9FtmSp1E6D5:2:4:13:324",
+   "sha256": "138935fa3c9b5d3e3fa40b754d73b827e63a04338276076f1387a72eb3090cea",
+   "bits": 2291
+  },
+  {
+   "kind": "random",
+   "seed": "fixture-1",
+   "address": "babel-en-1:359ckzeE0zVyXSmuMqUQRZ8dZfpLjAbShitAr8JV4p452xWxWkRbZDIuA4pI8prDpwiyeVmC5UCiwKs0iyZFhplGOSszo3WPMc18hBX04ThqkoFaYfqiLmMdML3dDD9Z1P7WiUpVinyzVRSqHmaD7Am9DElENwXRLVuBBZXP3ONt3tENRuPqGXeG7MJPxNWG5xHnlPJbtihKIGBEIsz2MZcrxyoxq6Iv289en1ZhgnEPQSmbbknPoZho4yhmZZz6Dq8eLar20KphgalFDlfEcHG83gLDq3R3SOeBRwoi4ewnuVOmYTMJnKKdNQpwvkObXQatuiLxR4:4:5:1:306",
+   "sha256": "aa4b646cf4ffe396f779b7b55ff0f17289963b045ce7a73674cbfe32512b4ae7",
+   "bits": 1979
+  },
+  {
+   "kind": "search",
+   "query": "Today I woke up thinking of you, and of the infinite library.",
+   "seed": "0",
+   "address": "babel-en-1:JSBr85epPYIETzC73RiM7yMJUEuEogy9NVAOaPMKxP7P1U4aqlqjh4hpJK3cP76SGIWLybGIx1bF0SciPXHWB2wFSn8ZHFGiYeeTZJt8VnOeRxWHA6h6oM6sG7yuACqsvPgMa613FcaXAxsJyZeYVWmycZBxQNs5bJZX9HSkX3r74LE7Y6NUZuIGH3WGzXVLcrMGKoJ9wCZqAIktS8EgsuntVvYc0CoEFCuNVSSkIbcVUajkCb778nH10aLt7vaI2xOMYM4P5YKQJa0NREPe5OBl1ALBAsoVK5PMY5g5Od6SK0Bdxw08mbrnRLBZY8XmYEDWDPtx9Eh5XUnpiwlUGiTqsuxvNjGKn6IzcvBi80gqnv5R5rNTOFBTgcBJdI4GjyMXV2zIZGwAPja70C5TbYSGPSQBToHz:1:4:3:34",
+   "sha256": "c6ba9a0c0d536a8bb9a01892a9e20a2c64e4495c5cbab127021f215c7d2e94f8",
+   "bits": 2494
+  }
+ ]
+}

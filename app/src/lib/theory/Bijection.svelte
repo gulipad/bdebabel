@@ -3,7 +3,32 @@
 	 * Basile's Library: an address and a page are the same thing, disguised. Every so often another address
 	 * comes up, and its page with it; both arrows of the function are always there.
 	 */
+	import { lang } from '#lib/i18n.ts';
 	import { inView } from '#lib/ui/seen.ts';
+
+	const TEXT = {
+		es: {
+			address: 'La dirección',
+			addressNote: '≈ 3.000 caracteres',
+			open: 'abrir →',
+			search: '← buscar',
+			page: 'La página',
+			pageNote: '3.200 caracteres, de 29 símbolos',
+			caption:
+				'La función va en los dos sentidos. Ninguna página está guardada en ningún sitio, porque la dirección ya contiene la página entera, codificada.'
+		},
+		en: {
+			address: 'The address',
+			addressNote: '≈ 3,000 characters',
+			open: 'open →',
+			search: '← search',
+			page: 'The page',
+			pageNote: '3,200 characters, of 29 symbols',
+			caption:
+				'The function goes both ways. No page is stored anywhere, because the address already contains the whole page, encoded.'
+		}
+	};
+	const t = TEXT[lang()];
 
 	let on = $state(false),
 		tick = $state(0);
@@ -32,24 +57,21 @@
 <figure use:inView={(v) => (on = v)}>
 	<div class="pair">
 		<div class="box">
-			<p class="label">La dirección</p>
+			<p class="label">{t.address}</p>
 			<p class="address">{address}…</p>
-			<p class="note">≈ 3.000 caracteres</p>
+			<p class="note">{t.addressNote}</p>
 		</div>
 		<div class="arrows" aria-hidden="true">
-			<span>abrir →</span>
-			<span>← buscar</span>
+			<span>{t.open}</span>
+			<span>{t.search}</span>
 		</div>
 		<div class="box page">
-			<p class="label">La página</p>
+			<p class="label">{t.page}</p>
 			{#each lines as l, i (i)}<p class="line">{l}</p>{/each}
-			<p class="note">3.200 caracteres, de 29 símbolos</p>
+			<p class="note">{t.pageNote}</p>
 		</div>
 	</div>
-	<figcaption>
-		La función va en los dos sentidos. Ninguna página está guardada en ningún sitio, porque la
-		dirección ya contiene la página entera, codificada.
-	</figcaption>
+	<figcaption>{t.caption}</figcaption>
 </figure>
 
 <style>

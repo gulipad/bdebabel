@@ -1,6 +1,20 @@
 <script lang="ts">
 	/** The Library's measures, drawn in turn as they come into view: room, wall, shelf, book, page. */
+	import { lang } from '#lib/i18n.ts';
 	import { seen } from '#lib/ui/seen.ts';
+
+	const TEXT = {
+		es: {
+			label: 'Una sala, un muro, una balda, un libro, una página',
+			parts: ['1 sala', '4 muros', '5 baldas', '32 libros', '410 páginas']
+		},
+		en: {
+			label: 'A room, a wall, a shelf, a book, a page',
+			parts: ['1 room', '4 walls', '5 shelves', '32 books', '410 pages']
+		}
+	};
+	const l = lang();
+	const t = TEXT[l];
 
 	let on = $state(false);
 	const hex = (cx: number, cy: number, r: number) =>
@@ -11,17 +25,13 @@
 </script>
 
 <figure use:seen={(v) => (on = v)} class:on>
-	<svg
-		viewBox="0 0 640 170"
-		role="img"
-		aria-label="Una sala, un muro, una balda, un libro, una página"
-	>
+	<svg viewBox="0 0 640 170" role="img" aria-label={t.label}>
 		<!-- la sala -->
 		<g class="step" style:--d="0s">
 			<polygon class="ink" points={hex(64, 70, 46)} pathLength="1" />
 			<polygon class="ink fine" points={hex(64, 70, 40)} pathLength="1" />
 			<circle class="ink fine" cx="64" cy="70" r="7" pathLength="1" />
-			<text x="64" y="140">1 sala</text>
+			<text x="64" y="140">{t.parts[0]}</text>
 		</g>
 		<text class="times" x="128" y="75">×</text>
 		<!-- el muro: cinco baldas -->
@@ -35,7 +45,7 @@
 					y2={y}
 					pathLength="1"
 				/>{/each}
-			<text x="188" y="140">4 muros</text>
+			<text x="188" y="140">{t.parts[1]}</text>
 		</g>
 		<text class="times" x="250" y="75">×</text>
 		<!-- la balda: 32 libros -->
@@ -51,13 +61,13 @@
 				/>
 			{/each}
 			<line class="ink" x1="268" x2="358" y1="88.5" y2="88.5" pathLength="1" />
-			<text x="314" y="140">5 baldas</text>
+			<text x="314" y="140">{t.parts[2]}</text>
 		</g>
 		<text class="times" x="380" y="75">×</text>
 		<!-- el libro -->
 		<g class="step" style:--d="1.5s">
 			<path class="ink" d="M402 34 h44 v76 h-44 z M408 34 v76" pathLength="1" />
-			<text x="424" y="140">32 libros</text>
+			<text x="424" y="140">{t.parts[3]}</text>
 		</g>
 		<text class="times" x="470" y="75">×</text>
 		<!-- la página -->
@@ -71,12 +81,17 @@
 					y2={y}
 					pathLength="1"
 				/>{/each}
-			<text x="528" y="140">410 páginas</text>
+			<text x="528" y="140">{t.parts[4]}</text>
 		</g>
 	</svg>
 	<figcaption>
-		<span class="sum">4 × 5 × 32 × 410 = <b>262.400 páginas</b> por sala</span>, de 3.200 caracteres
-		cada una.
+		{#if l === 'en'}
+			<span class="sum">4 × 5 × 32 × 410 = <b>262,400 pages</b> per room</span>, of 3,200 characters
+			each.
+		{:else}
+			<span class="sum">4 × 5 × 32 × 410 = <b>262.400 páginas</b> por sala</span>, de 3.200
+			caracteres cada una.
+		{/if}
 	</figcaption>
 </figure>
 

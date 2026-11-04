@@ -4,11 +4,26 @@
 	 * remembered on the device; until then, nothing else is shown.
 	 */
 	import type { Snippet } from 'svelte';
+	import { COMMON, lang } from '#lib/i18n.ts';
 	import { handheld } from './device.ts';
 	import InkLink from './InkLink.svelte';
 	import Sheet from './Sheet.svelte';
 
 	let { children }: { children: Snippet } = $props();
+
+	const TEXT = {
+		es: {
+			notice:
+				'Esta biblioteca está optimizada para ordenador. Utiliza procesamiento gráfico que puede ser lento en dispositivos móviles.',
+			enter: 'Entrar igualmente'
+		},
+		en: {
+			notice:
+				'This library is optimized for desktop computers. It uses graphics processing that may be slow on mobile devices.',
+			enter: 'Enter anyway'
+		}
+	};
+	const t = $derived(TEXT[lang()]);
 
 	const WARNED = 'babel:movil';
 	function warnedBefore() {
@@ -35,12 +50,9 @@
 {:else}
 	<Sheet />
 	<section class="notice">
-		<h1>La Biblioteca de Babel</h1>
-		<p>
-			Esta biblioteca está optimizada para ordenador. Utiliza procesamiento gráfico que puede ser
-			lento en dispositivos móviles.
-		</p>
-		<InkLink onclick={goIn}>Entrar igualmente</InkLink>
+		<h1>{COMMON[lang()].library}</h1>
+		<p>{t.notice}</p>
+		<InkLink onclick={goIn}>{t.enter}</InkLink>
 	</section>
 {/if}
 

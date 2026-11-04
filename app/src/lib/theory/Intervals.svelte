@@ -2,13 +2,16 @@
 	/**
 	 * How an address picks a page: the line of numbers is cut by the probabilities of the first word; the
 	 * slice the address falls in is the word, and it is cut again by the probabilities of the next one; and so
-	 * on. Each choice costs −log₂ p bits. Probabilities here are made up to show the idea, not the model's.
+	 * on. Each choice costs −log₂ p bits. Probabilities here are made up to show the idea, not the model's; each
+	 * language spells out its own sentence with them («No lo sé.», "I don't know.").
 	 */
+	import { lang, LOCALE } from '#lib/i18n.ts';
 	import { inView } from '#lib/ui/seen.ts';
 	import InkLink from '#lib/ui/InkLink.svelte';
 	import Log from './Log.svelte';
 
-	const LEVELS: { seg: [string, number][]; pick: number }[] = [
+	type Level = { seg: [string, number][]; pick: number };
+	const SPANISH: Level[] = [
 		{
 			seg: [
 				['—', 0.18],
@@ -51,6 +54,72 @@
 			pick: 0
 		}
 	];
+	const ENGLISH: Level[] = [
+		{
+			seg: [
+				['“', 0.18],
+				['The', 0.12],
+				['He', 0.1],
+				['I', 0.08],
+				['And', 0.06],
+				['But', 0.04],
+				['…', 0.42]
+			],
+			pick: 3
+		},
+		{
+			seg: [
+				['was', 0.3],
+				["don't", 0.16],
+				['had', 0.07],
+				['am', 0.06],
+				['think', 0.05],
+				['…', 0.36]
+			],
+			pick: 1
+		},
+		{
+			seg: [
+				['know', 0.38],
+				['think', 0.12],
+				['want', 0.09],
+				['care', 0.05],
+				['…', 0.36]
+			],
+			pick: 0
+		},
+		{
+			seg: [
+				['.', 0.44],
+				[',', 0.26],
+				['…', 0.3]
+			],
+			pick: 0
+		}
+	];
+	const TEXT = {
+		es: {
+			quote: (s: string) => `«${s}»`,
+			basile: 'en la de Basile,',
+			label: 'La línea de los números, cortada por las probabilidades de cada palabra',
+			others: '(todas las demás)',
+			go: '▸ Seguir',
+			stop: '❚❚ Parar',
+			restart: '↺ Reiniciar'
+		},
+		en: {
+			quote: (s: string) => `“${s}”`,
+			basile: "in Basile's,",
+			label: 'The line of numbers, cut by the probabilities of each word',
+			others: '(all the others)',
+			go: '▸ Go on',
+			stop: '❚❚ Stop',
+			restart: '↺ Restart'
+		}
+	};
+	const l = lang();
+	const t = TEXT[l];
+	const LEVELS = l === 'en' ? ENGLISH : SPANISH;
 	const W = 600;
 
 	let on = $state(false),
@@ -127,20 +196,16 @@
 <!-- it runs only while it is on screen -->
 <figure use:inView={(v) => (on = v)}>
 	<p class="sentence" aria-live="polite">
-		{#if sentence}«{sentence}»{:else}&nbsp;{/if}
+		{#if sentence}{t.quote(sentence)}{:else}&nbsp;{/if}
 		<span class="bits"
 			>{bits
-				? `${bits.toLocaleString('es-ES', { maximumFractionDigits: 1 })} bits`
+				? `${bits.toLocaleString(LOCALE[l], { maximumFractionDigits: 1 })} bits`
 				: ''}{#if phase === 'done'}<span class="basile"
-					>en la de Basile, {basile.toLocaleString('es-ES', { maximumFractionDigits: 1 })} bits</span
+					>{t.basile} {basile.toLocaleString(LOCALE[l], { maximumFractionDigits: 1 })} bits</span
 				>{/if}</span
 		>
 	</p>
-	<svg
-		viewBox={`0 -14 ${W} 92`}
-		role="img"
-		aria-label="La línea de los números, cortada por las probabilidades de cada palabra"
-	>
+	<svg viewBox={`0 -14 ${W} 92`} role="img" aria-label={t.label}>
 		{#key level}
 			<g
 				class="level"
@@ -160,9 +225,7 @@
 						height="40"
 					/>
 					{#if s.w > 26}
-						<text class="word" x={s.x + s.w / 2} y="35"
-							>{s.word === '…' ? '(todas las demás)' : s.word}</text
-						>
+						<text class="word" x={s.x + s.w / 2} y="35">{s.word === '…' ? t.others : s.word}</text>
 						<text class="p" x={s.x + s.w / 2} y="66">{Math.round(s.p * 100)}%</text>
 					{/if}
 				{/each}
@@ -175,13 +238,19 @@
 		</g>
 	</svg>
 	<div class="controls">
-		<InkLink small onclick={() => (paused = !paused)}>{paused ? '▸ Seguir' : '❚❚ Parar'}</InkLink>
-		<InkLink small onclick={restart}>↺ Reiniciar</InkLink>
+		<InkLink small onclick={() => (paused = !paused)}>{paused ? t.go : t.stop}</InkLink>
+		<InkLink small onclick={restart}>{t.restart}</InkLink>
 	</div>
 	<figcaption>
-		La dirección es un punto de esa línea, y cada palabra es la rodaja en la que cae. Cada palabra
-		cuesta
-		<Log /> bits, poco si es probable y mucho si es rara. Las probabilidades del dibujo son inventadas.
+		{#if l === 'en'}
+			The address is a point on that line, and each word is the slice it falls in. Each word costs
+			<Log /> bits: little if it is likely, a lot if it is rare. The drawing's probabilities are made
+			up.
+		{:else}
+			La dirección es un punto de esa línea, y cada palabra es la rodaja en la que cae. Cada palabra
+			cuesta
+			<Log /> bits, poco si es probable y mucho si es rara. Las probabilidades del dibujo son inventadas.
+		{/if}
 	</figcaption>
 </figure>
 

@@ -15,7 +15,7 @@ Float caveat: this runs MLX in float, so addresses are only reproducible on this
 machine with this software. That is fine for judging text quality; the shipping
 engine must be integer-only.
 """
-import argparse, math, random, re, time, unicodedata
+import argparse, math, os, random, re, time, unicodedata
 from pathlib import Path
 
 import json
@@ -63,13 +63,26 @@ def _bytes_to_unicode() -> dict[int, str]:
         if b not in bs: bs.append(b); cs.append(256 + n); n += 1
     return dict(zip(bs, map(chr, cs)))
 
+# --- the Library's language: BABEL_LANG=en for the English Library (babel-en-1); Spanish otherwise ---
+LANG = os.environ.get("BABEL_LANG", "es")
+# How a line of dialogue opens: the dialogue nudge applies to tokens that start with one of OPENS, and a paragraph
+# that starts with one of SPEECH is speech, which the paragraph nudge leaves alone.
+OPENS, SPEECH = (("“", '"'), ("“", '"', "‘")) if LANG == "en" else (("—", "-", "–"), ("—", "-", "–", "«", '"'))
+# Characters besides capitals a search draft may start a paragraph with.
+STARTS = "—-«¿¡\"“" + ("‘" if LANG == "en" else "")
+
 # --- the fallback writer: one character at a time, independently ---
-# Weights (per ~1000) roughly follow Spanish text; every other character of the alphabet gets 1.
+# Weights (per ~1000) roughly follow Spanish (or English) text; every other character of the alphabet gets 1.
 _FB_WEIGHTS = {" ": 160, "e": 115, "a": 105, "o": 75, "s": 65, "r": 58, "n": 56, "i": 52, "d": 46,
     "l": 41, "c": 38, "t": 38, "u": 33, "m": 26, "p": 21, "b": 12, ",": 12, "g": 9, ".": 9, "v": 8,
     "y": 8, "q": 7, "ó": 7, "h": 6, "í": 6, "f": 5, "z": 4, "j": 4, "á": 4, "é": 4, "\n": 3,
     "ñ": 2, "x": 2, "ú": 2}
 for _c in "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑ": _FB_WEIGHTS[_c] = 2
+if LANG == "en":
+    _FB_WEIGHTS = {" ": 170, "e": 102, "t": 74, "a": 66, "o": 62, "i": 57, "n": 57, "s": 52, "h": 50, "r": 48,
+        "d": 35, "l": 33, "u": 23, "c": 21, "m": 20, "w": 19, "f": 18, "g": 16, "y": 16, "p": 15, ",": 12,
+        "b": 12, ".": 10, "v": 8, "k": 6, "’": 3, "“": 3, "”": 3, "\n": 3, "x": 1, "j": 1, "q": 1, "z": 1}
+    for _c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ": _FB_WEIGHTS[_c] = 2
 _FB_CHARS = sorted(ALPHABET, key=lambda c: (-_FB_WEIGHTS.get(c, 1), c))
 _FB_W = np.array([_FB_WEIGHTS.get(c, 1) for c in _FB_CHARS], dtype=np.int64)
 _FB_CSUM = np.cumsum(_FB_W)
@@ -201,24 +214,39 @@ class LMLibrary:
         # Function words and punctuation repeat naturally; only penalize longer tokens.
         self.penalizable = np.array([len(t.strip()) > 3 for t in texts])
         # Tokens that open a line of dialogue, and tokens that end a line (for the dialogue nudge).
-        self.opens_dialogue = np.array([t.lstrip(" ").startswith(("—", "-", "–")) for t in texts])
+        self.opens_dialogue = np.array([t.lstrip(" ").startswith(OPENS) for t in texts])
         self.ends_line = np.array([t.endswith("\n") for t in texts])
         self.breaks_line = np.array(["\n" in t for t in texts])
         # Subtractive filter: romance and explicit vocabulary is made less likely (never impossible).
         # The model isn't told what to write, only what to avoid. "cama" is deliberately absent.
-        AVOID_WORDS = set("""beso besos besó besar besarla besarlo besarle besaba besaban besaron besándola besándolo
-            labios caricia caricias amante amantes sensual sensuales erótico erótica eróticos
-            pechos pecho pezón pezones muslo muslos nalgas trasero bragas sujetador lencería
-            sexo sexual sexuales pene polla vagina coño clítoris orgasmo erección gemido gemidos gimió gemía
-            desnudo desnuda desnudos desnudas desnudó desnudarse lamió lamer chupar chupó horcajadas""".split())
-        AVOID_PREFIXES = ("acarici", "desnud", "excitad", "excitaci", "sexual", "erótic", "orgasm", "seduc", "lujuri", "masturb", "eyacul",
-                          "penetr", "jade", "gemir", "lascivi", "voluptu")
+        if LANG == "en":
+            AVOID_WORDS = set("""kiss kisses kissed kissing lips caress caresses caressed lover lovers sensual erotic
+                breast breasts nipple nipples thigh thighs buttocks naked nude nudity sex sexual penis vagina orgasm
+                erection moan moaned moaning lust lustful lick licked straddle straddled
+                nigger niggers nigga darky darkies""".split())  # (racial slurs: the corpus drops their pages too)
+            AVOID_PREFIXES = ("caress", "undress", "arous", "sexual", "erotic", "orgasm", "seduc", "lascivi", "voluptu",
+                              "masturb", "ejacul", "fornicat", "lewd")
+            VIOLENCE = ("disembowel", "dismember", "mutilat", "entrail", "tortur", "decapitat", "eviscerat", "gore", "gory")
+            PROFANITY = set("fuck fucking fucked shit bastard bastards bitch damn goddamn cunt".split())
+        else:
+            AVOID_WORDS = set("""beso besos besó besar besarla besarlo besarle besaba besaban besaron besándola besándolo
+                labios caricia caricias amante amantes sensual sensuales erótico erótica eróticos
+                pechos pecho pezón pezones muslo muslos nalgas trasero bragas sujetador lencería
+                sexo sexual sexuales pene polla vagina coño clítoris orgasmo erección gemido gemidos gimió gemía
+                desnudo desnuda desnudos desnudas desnudó desnudarse lamió lamer chupar chupó horcajadas""".split())
+            AVOID_PREFIXES = ("acarici", "desnud", "excitad", "excitaci", "sexual", "erótic", "orgasm", "seduc", "lujuri", "masturb", "eyacul",
+                              "penetr", "jade", "gemir", "lascivi", "voluptu")
+            VIOLENCE = ("degoll", "destrip", "descuartiz", "mutil", "vísceras", "tortur", "apuñal", "ensangrent", "sesos", "despedaz", "decapit")
+            PROFANITY = set("mierda joder jodido jodida puta puto putas putos coño cabrón cabrones hostia hostias gilipollas cojones carajo".split())
         def avoided(t):
             w = t.strip().lower()
             return len(w) >= 4 and (w in AVOID_WORDS or w.startswith(AVOID_PREFIXES))
         self.avoid = np.array([avoided(t) for t in texts])
-        VIOLENCE = ("degoll", "destrip", "descuartiz", "mutil", "vísceras", "tortur", "apuñal", "ensangrent", "sesos", "despedaz", "decapit")
-        PROFANITY = set("mierda joder jodido jodida puta puto putas putos coño cabrón cabrones hostia hostias gilipollas cojones carajo".split())
+        if LANG == "en":  # Gutenberg's printed page numbers and footnote marks ("[Pg 97]", "[12]") are nearly every
+            # bracket in the English corpus: the model learned to write them, so brackets are made as remote as the rest
+            self.avoid |= np.array(["[" in t or t.strip() == "Pg" for t in texts])
+            # and chapter headings glued to a paragraph's end ("…later.” CHAPTER VIII"): 3% of its pages
+            self.avoid |= np.array([t.strip() in ("CHAPTER", "CHAP") for t in texts])
         self.violent = np.array([t.strip().lower().startswith(VIOLENCE) and len(t.strip()) >= 4 for t in texts])
         self.profane = np.array([t.strip().lower() in PROFANITY for t in texts])
         # Assistant persona (instruction-tuned models): conversational openers at the start of a
@@ -305,7 +333,7 @@ class LMLibrary:
                 t = self.texts[self.index[history[i]]] if history[i] in self.index else ""
                 if "\n" in t: para = t.rsplit("\n", 1)[1] + para; break
                 para = t + para; i -= 1
-            if 0 < len(para.strip()) < self.paragraph_min and not para.lstrip().startswith(("—", "-", "–", "«", '"')):
+            if 0 < len(para.strip()) < self.paragraph_min and not para.lstrip().startswith(SPEECH):
                 z[self.breaks_line] -= self.paragraph_bias
         fits = self.lens <= remaining
         z[~fits] = -np.inf
@@ -582,7 +610,7 @@ class LMLibrary:
                 b, logq, joined = self._backward(q_toks, bridge, allow_start=not far, rng=rng, stop_at_paragraph=bool(far))
                 if not joined: rejected += 1; continue  # the draft never reached a paragraph (or page) start
                 first = self.text_of(b + q_toks).lstrip(" ")
-                if not first[:1] or not (first[0].isupper() or first[0] in "—-«¿¡\"“"): rejected += 1; continue
+                if not first[:1] or not (first[0].isupper() or first[0] in STARTS): rejected += 1; continue
                 head_text = self.text_of(far) + self.text_of(b)
                 # The proposal is only meaningful if the forward tokenizer writes the same tokens.
                 if self.canonical(head_text + q)[: len(far) + len(b)] != far + b:

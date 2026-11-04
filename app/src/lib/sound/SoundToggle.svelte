@@ -4,7 +4,19 @@
 	 * slider that rises above it on hover. The music starts off; M turns it on and off from anywhere, except
 	 * while writing in a box.
 	 */
+	import { lang } from '#lib/i18n.ts';
 	import { soundtrack } from './soundtrack.svelte.ts';
+
+	const TEXT = {
+		es: {
+			mute: 'Silenciar la música (M)',
+			play: 'Poner la música (M)',
+			music: 'Música',
+			volume: 'Volumen'
+		},
+		en: { mute: 'Mute the music (M)', play: 'Play the music (M)', music: 'Music', volume: 'Volume' }
+	};
+	const t = $derived(TEXT[lang()]);
 
 	/** typing in a box (not on a slider or a button, where M is still the music's) */
 	const writing = (e: Event) =>
@@ -24,7 +36,7 @@
 	function touch(e: PointerEvent) {
 		if (!mine(e)) soundtrack.wake();
 	}
-	const label = $derived(soundtrack.on ? 'Silenciar la música (M)' : 'Poner la música (M)');
+	const label = $derived(soundtrack.on ? t.mute : t.play);
 </script>
 
 <svelte:window onkeydown={key} onpointerdown={touch} />
@@ -32,12 +44,12 @@
 <div
 	class="sound"
 	role="group"
-	aria-label="Música"
+	aria-label={t.music}
 	onpointerenter={() => soundtrack.prefetch()}
 	onfocusin={() => soundtrack.prefetch()}
 >
 	<label class="volume">
-		<span class="sr">Volumen</span>
+		<span class="sr">{t.volume}</span>
 		<input
 			type="range"
 			min="0"
