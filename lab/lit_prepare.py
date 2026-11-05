@@ -3,21 +3,21 @@
 # dependencies = ["numpy", "tokenizers", "transformers>=4.56"]
 # ///
 """
-Tokenizer + token files for the literary corpus (data/lit/pages.jsonl).
+Tokenizer + token files for the literary corpus (data/lit/pages.jsonl; the English one with LIT=data/lit-en).
 
 - heldout.bin: every page of ~2% of whole books (Gutenberg/EPUB, ≥40 pages), never trained on — measures
   how the model does on books it has never seen, not just unseen pages of familiar books.
 - val.bin: 1% of the remaining pages; train.bin: the rest.
 - Special tokens: <|endoftext|> (page separator and page start) and <|r2l|> (marks a page written right to left).
 """
-import json, random, sys
+import json, os, random, sys
 from pathlib import Path
 import numpy as np
 from tokenizers import ByteLevelBPETokenizer
 from transformers import AutoTokenizer
 
 ROOT = Path(__file__).resolve().parent.parent
-LIT = ROOT / "data" / "lit"
+LIT = Path(os.environ["LIT"]) if os.environ.get("LIT") else ROOT / "data" / "lit"  # LIT=data/lit-en for English
 vocab = int(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].isdigit() else 16384
 rows = [json.loads(l) for l in open(LIT / "pages.jsonl", encoding="utf-8")]
 from collections import Counter

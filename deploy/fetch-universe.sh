@@ -5,7 +5,8 @@ set -euo pipefail
 name="${1:?universe name, e.g. babel-1}"
 here="$(cd "$(dirname "$0")/.." && pwd)"
 root="$here/lab/universes/$name"
-model="$(grep '^VITE_MODEL_URL=' "$here/app/.env.production" | cut -d= -f2-)"
+key=VITE_MODEL_URL; [ "$name" = babel-en-1 ] && key=VITE_MODEL_URL_EN
+model="$(grep "^$key=" "$here/app/.env.production" | cut -d= -f2-)"
 node -e 'for (const [f, h] of Object.entries(require(process.argv[1]).files)) console.log(f, typeof h === "string" ? h : h.sha256)' "$root/manifest.json" |
 	while read -r f sha; do
 		if [ -f "$root/$f" ] && [ "$(shasum -a 256 "$root/$f" | cut -d' ' -f1)" = "$sha" ]; then continue; fi

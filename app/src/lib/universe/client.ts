@@ -1,4 +1,6 @@
 /** The interface's handle on the engine worker: typed requests, and the model's download progress for the door. */
+import { lang, LANGS, type Lang } from '#lib/i18n.ts';
+import type { Rings } from './frozen';
 import type { Request, ResultOf, Stage, UniverseInfo, WorkerMessage } from './protocol';
 
 export type Progress = { stage: Stage; loaded: number; total: number };
@@ -12,6 +14,8 @@ export class Universe {
 	>();
 	private listeners = new Set<(p: Progress) => void>();
 	readonly ready: Promise<UniverseInfo>;
+	/** what its manifest says of it, once it is open */
+	info: UniverseInfo | null = null;
 	/** the universe couldn't be opened (the download or a check failed): a new one must be started to retry */
 	failed = false;
 
@@ -30,7 +34,10 @@ export class Universe {
 			else p.reject(new Error(m.error));
 		};
 		this.ready = this.ask({ type: 'init', base: new URL(base, location.href).href, elsewhere });
-		this.ready.catch(() => (this.failed = true));
+		this.ready.then(
+			(info) => (this.info = info),
+			() => (this.failed = true)
+		);
 	}
 
 	/** stops the worker; whatever was still asked of it fails */
@@ -61,31 +68,84 @@ export class Universe {
 	center = () => this.ready.then(() => this.ask({ type: 'center' }));
 }
 
-const BASE = import.meta.env.VITE_UNIVERSE_BASE ?? '/universe/babel-1/';
-/** the model may live elsewhere (Hugging Face, in production): its URL, pinned to one commit */
-const MODEL = import.meta.env.VITE_MODEL_URL as string | undefined;
-const ELSEWHERE: Record<string, string> = MODEL ? { 'model/model.bin': MODEL } : {};
+/**
+ * Each language's universe: where its files are served, where its model lives (Hugging Face, in production:
+ * its URL, pinned to one commit), and what the model weighs, for the door's popup.
+ */
+const UNIVERSES: Record<Lang, { base: string; model?: string; mb: number }> = {
+	es: {
+		base: import.meta.env.VITE_UNIVERSE_BASE ?? '/universe/babel-1/',
+		model: import.meta.env.VITE_MODEL_URL as string | undefined,
+		mb: 77
+	},
+	en: {
+		base: import.meta.env.VITE_UNIVERSE_BASE_EN ?? '/universe/babel-en-1/',
+		model: import.meta.env.VITE_MODEL_URL_EN as string | undefined,
+		mb: 77
+	}
+};
+const elsewhere = (l: Lang): Record<string, string> => {
+	const model = UNIVERSES[l].model;
+	return model ? { 'model/model.bin': model } : {};
+};
 /** where the worker keeps the universe's files (worker.ts) */
 const CACHE = 'ciudad-de-babel-universes';
-let shared: Universe | null = null;
+/** the one universe open, and its language: opening the other language's closes it, so only one model is held */
+let shared: { lang: Lang; u: Universe } | null = null;
 
-/** One worker for the whole app, opened on first use (which starts the model's download), and again after one fails. */
-export function universe(): Universe {
-	if (shared?.failed) {
-		shared.close();
+/**
+ * One worker for the language the reader is in, opened on first use (which starts its model's download), and
+ * again after one fails. A language's model is only ever downloaded for that language's pages.
+ */
+export function universe(l: Lang = lang()): Universe {
+	if (shared && (shared.u.failed || shared.lang !== l)) {
+		shared.u.close();
 		shared = null;
 	}
-	shared ??= new Universe(BASE, ELSEWHERE);
-	return shared;
+	shared ??= { lang: l, u: new Universe(UNIVERSES[l].base, elsewhere(l)) };
+	return shared.u;
 }
 
-/** Whether the worker is open already, or the model came on an earlier visit and waits in the cache. */
-export async function arrived(): Promise<boolean> {
-	if (shared && !shared.failed) return true;
+/** Whether the language's worker is open already, or its model came on an earlier visit and waits in the cache. */
+export async function arrived(l: Lang = lang()): Promise<boolean> {
+	if (shared && shared.lang === l && !shared.u.failed) return true;
 	try {
-		const model = MODEL ?? new URL('model/model.bin', new URL(BASE, location.href)).href;
-		return !!(await (await caches.open(CACHE)).match(model));
+		const { model, base } = UNIVERSES[l];
+		const url = model ?? new URL('model/model.bin', new URL(base, location.href)).href;
+		return !!(await (await caches.open(CACHE)).match(url));
 	} catch {
 		return false;
+	}
+}
+
+/** what a language's model weighs, in MB */
+export const modelMB = (l: Lang = lang()) => UNIVERSES[l].mb;
+
+/**
+ * A language's universe id (babel-1, babel-en-1), as its addresses start: its manifest's, once it is open, and
+ * until then its folder's name, which is the same.
+ */
+export function universeId(l: Lang = lang()): string {
+	if (shared?.lang === l && shared.u.info) return shared.u.info.id;
+	return UNIVERSES[l].base.split('/').filter(Boolean).at(-1)!;
+}
+
+/** the language whose universe an address belongs to, if it is one of the city's */
+export const langOfUniverse = (id: string): Lang | undefined =>
+	LANGS.find((l) => universeId(l) === id);
+
+/**
+ * A language's rings (their names and where they end), for the drawings: the open universe's, when it is that
+ * language's (on a desktop it opens as the city does), or else read from its rings.json without opening it;
+ * null if the universe isn't there.
+ */
+export async function ringsOf(l: Lang): Promise<UniverseInfo['rings'] | null> {
+	if (shared?.lang === l) return shared.u.ready.then((info) => info.rings).catch(() => null);
+	try {
+		const res = await fetch(new URL('rings.json', new URL(UNIVERSES[l].base, location.href)));
+		if (!res.ok) return null;
+		return ((await res.json()) as Rings).rings;
+	} catch {
+		return null;
 	}
 }

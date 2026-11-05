@@ -25,6 +25,7 @@ natural = [int(lib.by_text.get(t) == int(i)) for t, i in zip(lib.texts, lib.ids)
 tables = {
     "ids": lib.ids.tolist(), "texts": lib.texts, "natural": natural, **flags,
     "fallback": {"chars": L._FB_CHARS, "weights": L._FB_W.tolist()},
+    "speech": "".join(L.SPEECH), "starts": L.STARTS,
     "alphabet": L.ALPHABET, "page_chars": L.PAGE_CHARS, "mix_t": lib.MIX_T, "top": lib.TOP,
     "exp2_q31": [int(round(2.0 ** (-f / 4096) * (1 << 31))) for f in range(4096)],
     "log2_q16": [int(round(math.log2(1 + f / 4096) * 65536)) for f in range(4096)],

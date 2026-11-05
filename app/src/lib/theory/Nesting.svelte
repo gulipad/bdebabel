@@ -5,6 +5,7 @@
 	 * Universe n holds 10^(80n + 15) bytes; the Library needs ≈ 10^4.683.
 	 */
 	import { steps } from '#lib/address.ts';
+	import { lang } from '#lib/i18n.ts';
 	import { seen } from '#lib/ui/seen.ts';
 	import InkLink from '#lib/ui/InkLink.svelte';
 	import Log from './Log.svelte';
@@ -12,6 +13,31 @@
 	const NEED = 4683,
 		LAST = Math.ceil((NEED - 15) / 80); // 59
 	const exp = (n: number) => 80 * n + 15;
+
+	const TEXT = {
+		es: {
+			label: 'Universos dentro de universos',
+			universe: 'Universo nº',
+			holds: 'caben 10',
+			fits: 'Ya cabe la Biblioteca.',
+			needs: 'La Biblioteca necesita 10',
+			stop: '❚❚ Parar',
+			again: '↺ Otra vez',
+			on: (n: number) => `▸ Seguir hasta el universo ${n}`
+		},
+		en: {
+			label: 'Universes within universes',
+			universe: 'Universe no.',
+			holds: 'it holds 10',
+			fits: 'The Library fits now.',
+			needs: 'The Library needs 10',
+			stop: '❚❚ Stop',
+			again: '↺ Again',
+			on: (n: number) => `▸ Go on to universe ${n}`
+		}
+	};
+	const l = lang();
+	const t = TEXT[l];
 
 	/** it plays the first few universes on its own, then waits to be asked for the rest */
 	const FIRST = 5;
@@ -69,7 +95,7 @@
 
 <figure use:seen={(v) => (on = v)}>
 	<div class="stage">
-		<svg viewBox="-14 -14 228 228" role="img" aria-label="Universos dentro de universos">
+		<svg viewBox="-14 -14 228 228" role="img" aria-label={t.label}>
 			<defs>
 				<!-- a pool of ink: pale in the middle, darkest just inside its edge, where it dried -->
 				<radialGradient id="universe-pool">
@@ -89,35 +115,41 @@
 			{/key}
 		</svg>
 		<div class="count" aria-live="polite">
-			<p class="n">Universo nº <b>{level}</b></p>
+			<p class="n">{t.universe} <b>{level}</b></p>
 			<p class="holds">
-				caben 10<sup>{steps(exp(level))}</sup> bytes
+				{t.holds}<sup>{steps(exp(level), l)}</sup> bytes
 			</p>
 			<p class="need" class:fits>
-				{fits ? 'Ya cabe la Biblioteca.' : 'La Biblioteca necesita 10'}{#if !fits}<sup>4.683</sup
-					>{/if}
+				{fits ? t.fits : t.needs}{#if !fits}<sup>{steps(NEED, l)}</sup>{/if}
 			</p>
 			{#if on}
 				<div class="play">
 					{#if playing}
-						<InkLink small onclick={stop}>❚❚ Parar</InkLink>
+						<InkLink small onclick={stop}>{t.stop}</InkLink>
 					{:else}
-						<InkLink small onclick={play}
-							>{level >= LAST ? '↺ Otra vez' : `▸ Seguir hasta el universo ${LAST}`}</InkLink
-						>
+						<InkLink small onclick={play}>{level >= LAST ? t.again : t.on(LAST)}</InkLink>
 					{/if}
 				</div>
 			{/if}
 		</div>
 	</div>
 	<figcaption>
-		Una página son 3.200 × <Log of="29" minus={false} /> ≈ 15.546 bits, unos 1.943 bytes, así que la Biblioteca
-		ocupa 10<sup>4.680</sup>
-		páginas × 1.943 bytes ≈ 10<sup>4.683</sup> bytes. Un universo de discos de 1 PB guarda 10<sup
-			>80</sup
-		>
-		× 10<sup>15</sup> = 10<sup>95</sup>, y cada nivel más multiplica por otros 10<sup>80</sup>. Hace
-		falta que 80·n + 15 ≥ 4.683, es decir, n = 59.
+		{#if l === 'en'}
+			A page is 3,200 × <Log of="29" minus={false} /> ≈ 15,546 bits, about 1,943 bytes, so the Library
+			takes up 10<sup>4,680</sup>
+			pages × 1,943 bytes ≈ 10<sup>4,683</sup> bytes. A universe of 1 PB disks holds 10<sup>80</sup>
+			× 10<sup>15</sup> = 10<sup>95</sup>, and each level more multiplies that by another 10<sup
+				>80</sup
+			>. We need 80·n + 15 ≥ 4,683, that is, n = 59.
+		{:else}
+			Una página son 3.200 × <Log of="29" minus={false} /> ≈ 15.546 bits, unos 1.943 bytes, así que la
+			Biblioteca ocupa 10<sup>4.680</sup>
+			páginas × 1.943 bytes ≈ 10<sup>4.683</sup> bytes. Un universo de discos de 1 PB guarda 10<sup
+				>80</sup
+			>
+			× 10<sup>15</sup> = 10<sup>95</sup>, y cada nivel más multiplica por otros 10<sup>80</sup>.
+			Hace falta que 80·n + 15 ≥ 4.683, es decir, n = 59.
+		{/if}
 	</figcaption>
 </figure>
 

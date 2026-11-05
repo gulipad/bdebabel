@@ -4,6 +4,7 @@
 	 * as the page number moves (odd pages on the right, as in a printed book).
 	 */
 	import { PAGES } from '#lib/address.ts';
+	import { lang } from '#lib/i18n.ts';
 	import InkLink from '#lib/ui/InkLink.svelte';
 
 	let {
@@ -11,6 +12,32 @@
 		page = $bindable(1),
 		onopen
 	}: { volume: number; page?: number; onopen: (page: number) => void } = $props();
+
+	const TEXT = {
+		es: {
+			volume: 'Volumen',
+			page: 'página',
+			of: 'de',
+			previous: 'Página anterior',
+			next: 'Página siguiente',
+			slider: 'Página',
+			number: 'Número de página',
+			read: (p: number) => `Leer la página ${p}`,
+			random: 'Una al azar de este libro'
+		},
+		en: {
+			volume: 'Volume',
+			page: 'page',
+			of: 'of',
+			previous: 'Previous page',
+			next: 'Next page',
+			slider: 'Page',
+			number: 'Page number',
+			read: (p: number) => `Read page ${p}`,
+			random: 'One at random from this book'
+		}
+	};
+	const t = TEXT[lang()];
 
 	const clamp = (n: number) => Math.min(PAGES, Math.max(1, Math.round(n) || 1));
 	const set = (n: number) => (page = clamp(n));
@@ -53,10 +80,10 @@
 		<text class="folio" x="230" y="150">{page % 2 ? page : Math.min(PAGES, page + 1)}</text>
 	</svg>
 
-	<p class="which">Volumen {volume} · página <b>{page}</b> de {PAGES}</p>
+	<p class="which">{t.volume} {volume} · {t.page} <b>{page}</b> {t.of} {PAGES}</p>
 
 	<div class="leaf-through">
-		<button type="button" class="turn" aria-label="Página anterior" onclick={() => set(page - 1)}
+		<button type="button" class="turn" aria-label={t.previous} onclick={() => set(page - 1)}
 			>‹</button
 		>
 		<input
@@ -65,11 +92,9 @@
 			max={PAGES}
 			value={page}
 			oninput={(e) => set(Number(e.currentTarget.value))}
-			aria-label="Página"
+			aria-label={t.slider}
 		/>
-		<button type="button" class="turn" aria-label="Página siguiente" onclick={() => set(page + 1)}
-			>›</button
-		>
+		<button type="button" class="turn" aria-label={t.next} onclick={() => set(page + 1)}>›</button>
 		<input
 			class="number"
 			type="number"
@@ -77,15 +102,13 @@
 			max={PAGES}
 			value={page}
 			onchange={(e) => set(Number(e.currentTarget.value))}
-			aria-label="Número de página"
+			aria-label={t.number}
 		/>
 	</div>
 
 	<div class="actions">
-		<InkLink onclick={() => onopen(page)}>Leer la página {page}</InkLink>
-		<InkLink small onclick={() => onopen(clamp(1 + Math.random() * PAGES))}
-			>Una al azar de este libro</InkLink
-		>
+		<InkLink onclick={() => onopen(page)}>{t.read(page)}</InkLink>
+		<InkLink small onclick={() => onopen(clamp(1 + Math.random() * PAGES))}>{t.random}</InkLink>
 	</div>
 </div>
 

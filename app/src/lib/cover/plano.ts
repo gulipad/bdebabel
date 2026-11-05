@@ -4,6 +4,8 @@
  * notes, in the librarian's darker ink. Cover.svelte draws them with the pen (src/lib/pen) onto the paper.
  */
 
+import type { Lang } from '#lib/i18n.ts';
+
 /** The design is laid out on a 1200 × 780 board, centred on the sheet and scaled to cover it. */
 export const VIEW = { w: 1200, h: 780 } as const;
 
@@ -21,6 +23,8 @@ export interface PlanoOptions {
 	clearing: number;
 	/** whether the ways into the city sit under the title (if not, the title takes the middle of the heart) */
 	ways: boolean;
+	/** the language of the title and of the lettering (each edition's cover is lettered with its own pages) */
+	lang: Lang;
 }
 
 export const DEFAULT_PLANO: PlanoOptions = {
@@ -30,7 +34,8 @@ export const DEFAULT_PLANO: PlanoOptions = {
 	doors: 0.42,
 	shafts: 0.3,
 	clearing: 268,
-	ways: true
+	ways: true,
+	lang: 'es'
 };
 
 type Pt = [number, number];
@@ -105,10 +110,10 @@ function seeded(seed: number) {
 }
 
 /**
- * What the galleries' bands say: a fixed pool of excerpts from pages of babel-1,
- * chosen once by hand; a band takes one at random each time it appears.
+ * What the galleries' bands say: a fixed pool of excerpts from pages of each edition's universe, chosen once by
+ * hand; a band takes one at random each time it appears.
  */
-export const EXCERPTS = [
+const SPANISH_EXCERPTS = [
 	'con una sola palabra',
 	'puede también quedarse',
 	'hay que fingir',
@@ -137,11 +142,57 @@ export const EXCERPTS = [
 	'en su mayor parte'
 ];
 
-/** From a page of babel-1: one line per loop, the outermost first. */
-const CLEARING_TEXT = [
-	'Los macrocéfalos están de acuerdo en que la vida es una serie de movimientos y movimientos que se han transmitido recíprocamente, de suerte que sus estados de ánimo, cuando son divergentes, en su mayor parte, son necesariamente independientes.',
-	'Tal es la regla general, y según ellos, para que la mente se sienta capaz de explicar en sus sentimientos, hay que fingir, o, lo que es lo mismo, tomar en cuenta la magnitud, longitud y magnitud de la causa de que sea un objeto.'
+/** Phrases from pages of babel-en-1, as the Spanish ones are from babel-1's. */
+const ENGLISH_EXCERPTS = [
+	'a bit windy',
+	'I’ll see you soon',
+	'you could make the world dance for you',
+	'as if to ask her a question',
+	'it’s rather funny',
+	'the last piece of good luck',
+	'I want to remember the old story',
+	'and think of something else',
+	'it’s just an impression',
+	'worse and better all the afternoon',
+	'a trace of irony on his face',
+	'but the woman was gone',
+	'that would be quite a victory',
+	'it may mean the end of everything',
+	'was it a child?',
+	'what a queer place to find it',
+	'it is too late to try',
+	'thanks ever so much',
+	'a little old clock on a mantelpiece',
+	'I’m so glad you’re all right',
+	'suppose we must think it over',
+	'it’s too risky',
+	'facing each other',
+	'the ground fell away from under him',
+	'there was a silence in the house',
+	'that’s all there is to it'
 ];
+
+export const EXCERPTS: Record<Lang, string[]> = { es: SPANISH_EXCERPTS, en: ENGLISH_EXCERPTS };
+
+/** The clearing's lines: one per loop, the outermost first. */
+const CLEARING_TEXT: Record<Lang, string[]> = {
+	// from a page of babel-1
+	es: [
+		'Los macrocéfalos están de acuerdo en que la vida es una serie de movimientos y movimientos que se han transmitido recíprocamente, de suerte que sus estados de ánimo, cuando son divergentes, en su mayor parte, son necesariamente independientes.',
+		'Tal es la regla general, y según ellos, para que la mente se sienta capaz de explicar en sus sentimientos, hay que fingir, o, lo que es lo mismo, tomar en cuenta la magnitud, longitud y magnitud de la causa de que sea un objeto.'
+	],
+	// from a page of babel-en-1
+	en: [
+		'It was all so mysterious and unreal, and it seemed like the real thing, but there was no moon, no stars, no birds, no snow, no white clouds.',
+		'He went up to his room and opened the door and looked out on the dark, silent streets, so quiet, so dark, and the dark houses with their queer lights and the great street so shabby and far away.'
+	]
+};
+
+/** The title, in its two lines. */
+const TITLE: Record<Lang, [string, string]> = {
+	es: ['LA BIBLIOTECA', 'DE BABEL'],
+	en: ['THE LIBRARY', 'OF BABEL']
+};
 
 const hexPts = (cx: number, cy: number, r: number): Pt[] =>
 	Array.from({ length: 6 }, (_, k) => {
@@ -267,7 +318,7 @@ export function planoScene(o: Partial<PlanoOptions> = {}): PlanoScene {
 		)
 		.sort((a, b) => a.r - b.r)
 		.map(({ c }) => c);
-	const phrases = [...EXCERPTS].sort(() => lrnd() - 0.5);
+	const phrases = [...EXCERPTS[p.lang]].sort(() => lrnd() - 0.5);
 	const size = 11,
 		r = ((s - gap) * Math.sqrt(3)) / 2 - 2 - size * 0.72; // the baseline's apothem, letters leaning on the wall
 	order.forEach(([x, y], i) => {
@@ -297,8 +348,8 @@ export function planoScene(o: Partial<PlanoOptions> = {}): PlanoScene {
 		opening.push(i);
 	});
 
-	// a sentence from a page of babel-1 lining the clearing, along the walls that face it
-	CLEARING_TEXT.forEach((t, i) => {
+	// a sentence from a page of the universe lining the clearing, along the walls that face it
+	CLEARING_TEXT[p.lang].forEach((t, i) => {
 		const shore = clearingShore(cells, s, cx, cy, p.clearing, 3 + 15 * 0.72 + i * 17);
 		if (shore.length > 2)
 			plan.push({ kind: 'ring', t, pts: shore, size: 15, font: FELL, alpha: 0.9 });
@@ -328,8 +379,8 @@ export function planoScene(o: Partial<PlanoOptions> = {}): PlanoScene {
 	// the title, in the face kept for it, in the middle of the clearing
 	const [top, tsize] = p.ways ? [cy - 63, 24] : [cy - 12, 31];
 	const title: Mark[] = [
-		['LA BIBLIOTECA', top],
-		['DE BABEL', top + (tsize * 34) / 24]
+		[TITLE[p.lang][0], top],
+		[TITLE[p.lang][1], top + (tsize * 34) / 24]
 	].map(([t, y]) => ({
 		kind: 'text',
 		t: t as string,

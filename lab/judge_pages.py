@@ -52,9 +52,18 @@ ARCHAIC_CRITERIA = {
     "B": "Español del siglo XIX, legible hoy aunque use formas como «sentóse», «díjole» o «hallábase».",
     "C": "Español de los Siglos de Oro o anterior: «vuesa merced», «dixo», «agora», «fasta», «dél», ortografía antigua.",
 }
+# The same rule for the English corpus (lab/en_corpus.py, data/lit-en): --lang en.
+CRITERIA_EN = {
+    "A": "Nothing sensitive.",
+    "B": "Deaths, killings, fights, blood, wounds or corpses mentioned; desire, attraction, kisses, embraces, the "
+         "beauty of a body, sensuality or innuendo; swearing. All of this is acceptable.",
+    "C": "Explicit erotica: sexual acts described, genitals, or the naked body described in sexual detail.",
+    "D": "Explicit gore: entrails, guts, brains or bones exposed, mutilation or decomposition described in detail.",
+}
 TASKS = {  # input file, criteria, instructions, labels that drop a page
     "safety": ("flagged.jsonl", CRITERIA, "Clasifica este fragmento de novela en español para un corpus apto para todos los públicos.", "CD"),
     "archaic": ("archaic.jsonl", ARCHAIC_CRITERIA, "¿De qué época es el español de este fragmento?", "C"),
+    "safety-en": ("flagged.jsonl", CRITERIA_EN, "Classify this excerpt from a novel for a corpus suitable for all audiences.", "CD"),
 }
 RUBRIC = {t: hashlib.blake2b(json.dumps(c, ensure_ascii=False).encode(), digest_size=3).hexdigest() for t, (_, c, _, _) in TASKS.items()}
 
@@ -91,15 +100,16 @@ class JevJudge:
 
     def __init__(self, task: str = "safety", model: str = "jev-latest"):
         _, self.criteria, self.instructions, _ = TASKS[task]
+        self.field, self.question = ("fragment", "label") if task.endswith("-en") else ("fragmento", "etiqueta")
         self.model, self.http = model, httpx.Client(timeout=30, headers={"Authorization": f"Bearer {os.environ['TYPESAFE_API_KEY']}"})
 
     def __call__(self, fragment: str) -> list[float]:
-        body = {"model": self.model, "state": {"fragmento": fragment},
-                "questions": {"etiqueta": {"type": "choice", "criteria": self.criteria, "instructions": self.instructions}}}
+        body = {"model": self.model, "state": {self.field: fragment},
+                "questions": {self.question: {"type": "choice", "criteria": self.criteria, "instructions": self.instructions}}}
         for attempt in range(5):
             try:
                 r = self.http.post(self.url, json=body); r.raise_for_status()
-                p = r.json()["answers"]["etiqueta"]["probabilities"]
+                p = r.json()["answers"][self.question]["probabilities"]
                 return [float(p.get(c, 0)) for c in self.criteria]
             except (httpx.HTTPError, KeyError):
                 if attempt == 4: raise
@@ -142,10 +152,16 @@ def main():
     ap.add_argument("--task", choices=list(TASKS), default="safety")
     ap.add_argument("--judge", choices=["jev", "local"], default="jev")
     ap.add_argument("--workers", type=int, default=16, help="concurrent Jev requests")
+    ap.add_argument("--lang", choices=["es", "en"], default="es", help="en: the English corpus in data/lit-en")
     a = ap.parse_args()
+    global LIT
+    if a.lang == "en":
+        if a.task != "safety": raise SystemExit("English has only the safety task")
+        a.task, LIT = "safety-en", ROOT / "data" / "lit-en"
     src_file, _, _, drop = TASKS[a.task]
     if a.judge == "local" and a.task != "safety": raise SystemExit("the local judge only does --task safety")
     tag = f"{a.task}-{RUBRIC[a.task]}" if a.task != "safety" else RUBRIC["safety"]  # safety keeps its old file name
+    if a.task == "safety-en": tag = "safety-en"  # the name lab/en_corpus.py reads
     out_path = LIT / f"judged-{a.judge}-{tag if a.judge == 'jev' else 'qwen'}.jsonl"  # new rubric, new cache
     done = {json.loads(l)["key"] for l in open(out_path, encoding="utf-8")} if out_path.exists() else set()
     todo = [r for r in map(json.loads, open(LIT / src_file, encoding="utf-8")) if page_key(r["text"]) not in done]

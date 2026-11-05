@@ -4,6 +4,8 @@
 	 * walls carry the shelves, five to a wall; the two free sides open onto hallways that lead to other rooms;
 	 * in the middle, the ventilation shaft. A wall is chosen by clicking it.
 	 */
+	import { lang } from '#lib/i18n.ts';
+
 	let {
 		current = 0,
 		onpick,
@@ -14,6 +16,26 @@
 		/** walking out through a hallway, to another room */
 		onhall?: () => void;
 	} = $props();
+
+	const TEXT = {
+		es: {
+			above: 'La sala, vista desde arriba',
+			out: 'Salir por el zaguán a otra sala',
+			hall: 'zaguán',
+			Wall: 'Muro',
+			wall: 'muro',
+			shaft: 'pozo de ventilación'
+		},
+		en: {
+			above: 'The room, seen from above',
+			out: 'Out through the hallway, to another room',
+			hall: 'hallway',
+			Wall: 'Wall',
+			wall: 'wall',
+			shaft: 'ventilation shaft'
+		}
+	};
+	const t = TEXT[lang()];
 
 	const C = 200,
 		R = 150,
@@ -78,7 +100,7 @@
 	};
 </script>
 
-<svg viewBox="-20 -30 440 460" role="group" aria-label="La sala, vista desde arriba">
+<svg viewBox="-20 -30 440 460" role="group" aria-label={t.above}>
 	{#each FREE_SIDES as k (k)}
 		{@const d = door(k)}
 		{#each [...d.segs, ...d.jambs] as [[x1, y1], [x2, y2]], i (i)}
@@ -88,13 +110,13 @@
 			class="hall"
 			role="button"
 			tabindex="0"
-			aria-label="Salir por el zaguán a otra sala"
+			aria-label={t.out}
 			onclick={() => onhall?.()}
 			onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && onhall?.()}
 		>
-			<title>Salir por el zaguán a otra sala</title>
+			<title>{t.out}</title>
 			<rect class="hit" x={d.name.x - 40} y={d.name.y - 34} width="80" height="48" />
-			<text class="note" x={d.name.x} y={d.name.y}>zaguán</text>
+			<text class="note" x={d.name.x} y={d.name.y}>{t.hall}</text>
 		</g>
 	{/each}
 
@@ -107,7 +129,7 @@
 			class:current={current === w + 1}
 			role="button"
 			tabindex="0"
-			aria-label={`Muro ${w + 1}`}
+			aria-label={`${t.Wall} ${w + 1}`}
 			onclick={() => onpick(w + 1)}
 			onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && onpick(w + 1)}
 		>
@@ -118,13 +140,15 @@
 			{#each ticks(k) as t, j (j)}
 				<line class="ink fine draw" x1={t.x} y1={t.y} x2={t.x2} y2={t.y2} pathLength="1" />
 			{/each}
-			<text class="name" transform={`translate(${l.x} ${l.y}) rotate(${l.a})`}>muro {w + 1}</text>
+			<text class="name" transform={`translate(${l.x} ${l.y}) rotate(${l.a})`}
+				>{t.wall} {w + 1}</text
+			>
 		</g>
 	{/each}
 
 	<circle class="ink draw" cx={C} cy={C} r="22" pathLength="1" />
 	<circle class="ink fine draw" cx={C} cy={C} r="27" pathLength="1" />
-	<text class="note" x={C} y={C + 46}>pozo de ventilación</text>
+	<text class="note" x={C} y={C + 46}>{t.shaft}</text>
 </svg>
 
 <style>

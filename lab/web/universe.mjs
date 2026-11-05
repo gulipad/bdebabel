@@ -5,6 +5,8 @@
 // Its addresses are "<id>:<hexágono>:<muro>:<anaquel>:<volumen>:<página>" and must open the same page forever.
 //
 //   node lab/web/universe.mjs freeze babel-1 "<description>"   (from lab/web, exported from $MODEL, default lab/models/librarian-1)
+//   SRC=<dir with model.bin, model.json, library.json> MODEL=lab/models/librarian-en-1 node lab/web/universe.mjs freeze babel-en-1 "…"
+//     (an English universe: its id contains "-en-"; the fixture search and the ring names are English)
 //   node lab/web/universe.mjs verify babel-1
 //   node lab/web/universe.mjs page babel-1 <address | random [seed]>
 //   node lab/web/universe.mjs search babel-1 "<sentence>" [seed]
@@ -21,6 +23,9 @@ const shaText = (t) => createHash("sha256").update(t, "utf8").digest("hex");
 const ENGINE = ["engine.wat", "fast.js", "codec.js", "bpe.js", "address.js"];
 // the model lab/web/model.bin was exported from (lab/int_engine.py export <folder> lab/web)
 const MODEL = process.env.MODEL || "lab/models/librarian-1", MODEL_NAME = MODEL.split("/").pop();
+// where the exported model and its tables are (lab/int_engine.py export, lab/web/export_library.py)
+const SRC = process.env.SRC || HERE, LIBRARY = process.env.SRC ? join(process.env.SRC, "library.json") : join(SCRATCH, "library.json");
+const english = (uid) => uid.includes("-en-");
 
 async function open(uid) {
   const d = join(ROOT, "lab/universes", uid), m = JSON.parse(readFileSync(join(d, "manifest.json")));
@@ -46,9 +51,9 @@ async function freeze(uid, description) {
   const d = join(ROOT, "lab/universes", uid);
   if (existsSync(join(d, "manifest.json"))) throw new Error(`${uid} is already frozen`);
   mkdirSync(join(d, "model"), { recursive: true }); mkdirSync(join(d, "engine"), { recursive: true });
-  for (const f of ["model.bin", "model.json"]) copyFileSync(join(HERE, f), join(d, "model", f));
+  for (const f of ["model.bin", "model.json"]) copyFileSync(join(SRC, f), join(d, "model", f));
   copyFileSync(join(HERE, "engine.wasm"), join(d, "model/engine.wasm"));
-  copyFileSync(join(SCRATCH, "library.json"), join(d, "model/library.json"));
+  copyFileSync(LIBRARY, join(d, "model/library.json"));
   for (const f of ENGINE) copyFileSync(join(HERE, f), join(d, "engine", f));
   const { BABEL1 } = await import(join(d, "engine/codec.js"));
   const files = {};
@@ -68,7 +73,7 @@ async function freeze(uid, description) {
     const [text] = u.lib.pageDecode(randomNumber(seed, 3200)), n = u.lib.pageEncode(text);
     m.fixtures.push({ kind: "random", seed, address: await u.address(n), sha256: shaText(text), bits: n.toString(2).length });
   }
-  const q = ["Hoy me desperté pensando en ti, y en la biblioteca infinita.", "0"], r = u.lib.search(q[0], q[1]), n = u.lib.pageEncode(r.page);
+  const q = [english(uid) ? "Today I woke up thinking of you, and of the infinite library." : "Hoy me desperté pensando en ti, y en la biblioteca infinita.", "0"], r = u.lib.search(q[0], q[1]), n = u.lib.pageEncode(r.page);
   m.fixtures.push({ kind: "search", query: q[0], seed: q[1], address: await u.address(n), sha256: shaText(r.page), bits: n.toString(2).length });
   writeFileSync(join(d, "manifest.json"), JSON.stringify(m, null, 1));
   for (const f of [...Object.keys(files), "manifest.json"]) chmodSync(join(d, f), 0o444);
@@ -99,8 +104,9 @@ async function rings(uid, pages) {
   bits.sort((a, b) => a - b);
   const q = (p) => bits[Math.min(bits.length - 1, Math.floor(p * bits.length))];
   const out = { universe: uid, pages, percentiles: { p1: q(0.01), p10: q(0.1), p50: q(0.5), p90: q(0.9), p99: q(0.99) },
-    rings: [ { name: "El Centro", until: q(0.01) }, { name: "Los Barrios", until: q(0.99) },
-             { name: "Las Afueras", until: 2 * q(0.99) }, { name: "Los Confines", until: 8 * q(0.99) }, { name: "El Vacío", until: null } ],
+    rings: (english(uid) ? ["The Centre", "The Neighbourhoods", "The Outskirts", "The Far Reaches", "The Void"]
+                         : ["El Centro", "Los Barrios", "Las Afueras", "Los Confines", "El Vacío"])
+      .map((name, i) => ({ name, until: [q(0.01), q(0.99), 2 * q(0.99), 8 * q(0.99), null][i] })),
     note: "Boundaries from the distances of pages opened at random addresses: the 1% nearest are the center, the middle 98% the neighbourhoods where browsing lands; beyond, text the Library finds increasingly unlikely." };
   writeFileSync(join(u.d, "rings.json"), JSON.stringify(out, null, 1));
   console.log(JSON.stringify(out.percentiles));

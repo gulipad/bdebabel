@@ -1,8 +1,8 @@
 <script lang="ts">
 	/** One leaf of the Library: its catalogue slip (where it is, how far) and its text, exactly as stored. */
-	import { resolve } from '$app/paths';
 	import { locate, steps } from '#lib/address.ts';
 	import Trail from '#lib/browse/Trail.svelte';
+	import { COMMON, lang, pagePath } from '#lib/i18n.ts';
 	import InkLink from '#lib/ui/InkLink.svelte';
 	import type { PageResult } from '#lib/universe/protocol.ts';
 
@@ -11,10 +11,18 @@
 
 	const where = $derived(locate(page.address));
 
+	const TEXT = {
+		es: { slip: 'Ficha de la página', far: 'pasos del centro.' },
+		en: { slip: "The page's catalogue slip", far: 'steps from the centre.' }
+	};
+	const l = lang();
+	const t = TEXT[l],
+		c = COMMON[l];
+
 	/** the page's link, to give someone (the address is in it), onto the clipboard (the old way where refused) */
 	let copied = $state(false);
 	async function copy() {
-		const link = location.origin + resolve('/[address]', { address: page.address });
+		const link = location.origin + pagePath(page.address, l);
 		try {
 			await navigator.clipboard.writeText(link);
 		} catch {
@@ -51,11 +59,11 @@
 </script>
 
 <section class="leaf">
-	<div class="slip" aria-label="Ficha de la página">
-		<p class="far"><span>{page.ring}.</span> {steps(page.bits)} pasos del centro.</p>
+	<div class="slip" aria-label={t.slip}>
+		<p class="far"><span>{page.ring}.</span> {steps(page.bits, l)} {t.far}</p>
 		<div class="where">
 			{#if where}<Trail {where} />{/if}
-			<InkLink small onclick={copy}>{copied ? 'Copiado' : 'Copiar el enlace'}</InkLink>
+			<InkLink small onclick={copy}>{copied ? c.copied : c.copy}</InkLink>
 		</div>
 	</div>
 

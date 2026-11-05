@@ -1,7 +1,10 @@
 /** Messages between the interface and the engine worker. */
 
+/** the error a universe not published yet fails with (its manifest isn't there): the interface says it in words */
+export const ABSENT = 'universe-absent';
+
 export interface PageResult {
-	/** the page's full address, e.g. babel-1:<hexágono>:<muro>:<balda>:<volumen>:<página> */
+	/** the page's full address, e.g. babel-1:<hexágono>:<muro>:<balda>:<volumen>:<página> (babel-en-1:… in English) */
 	address: string;
 	text: string;
 	/** distance from the center: the length of the page's number in bits */
