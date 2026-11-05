@@ -13,12 +13,6 @@
 	import Rings from '#lib/theory/Rings.svelte';
 	import InkLink from '#lib/ui/InkLink.svelte';
 	import { melt } from '#lib/ui/melt.ts';
-	import { page } from '$app/state';
-	import TextEditor from '#lib/dev/TextEditor.svelte';
-
-	// the temporary editor, on the dev server only (?editar, as in Teoría): see lib/dev/TextEditor.svelte
-	const editing = import.meta.env.DEV && page.url.searchParams.has('editar');
-	let article = $state<HTMLElement>();
 </script>
 
 <svelte:head>
@@ -43,7 +37,7 @@
 	</p>
 {/snippet}
 
-<article class="theory" bind:this={article}>
+<article class="theory">
 	<h1>The Infinite Library</h1>
 
 	<blockquote class="preamble">
@@ -279,8 +273,6 @@
 		{@render credit()}
 	</section>
 </article>
-
-{#if editing && article}<TextEditor root={article} name="theory-en" />{/if}
 
 <style>
 	.theory {

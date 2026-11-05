@@ -9,13 +9,7 @@
 	import Nesting from '#lib/theory/Nesting.svelte';
 	import Rings from '#lib/theory/Rings.svelte';
 	import InkLink from '#lib/ui/InkLink.svelte';
-	import { page } from '$app/state';
-	import TextEditor from '#lib/dev/TextEditor.svelte';
 	import { melt } from '#lib/ui/melt.ts';
-
-	// a temporary editor, on the dev server only (?editar): see lib/dev/TextEditor.svelte
-	const editing = import.meta.env.DEV && page.url.searchParams.has('editar');
-	let article = $state<HTMLElement>();
 </script>
 
 <svelte:head>
@@ -40,7 +34,7 @@
 	</p>
 {/snippet}
 
-<article class="theory" bind:this={article}>
+<article class="theory">
 	<h1>La Biblioteca Infinita</h1>
 
 	<blockquote class="preamble">
@@ -286,7 +280,6 @@
 		{@render credit()}
 	</section>
 </article>
-{#if editing && article}<TextEditor root={article} name="teoria" />{/if}
 
 <style>
 	.theory {
