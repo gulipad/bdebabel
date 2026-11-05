@@ -24,6 +24,7 @@ import {
 	type WorkerMessage
 } from './protocol.ts';
 
+import { searchWithLeadIn } from './leadin.ts';
 import { Sha256 } from './sha256.ts';
 
 declare const self: DedicatedWorkerGlobalScope;
@@ -280,7 +281,11 @@ async function handle(req: Request): Promise<unknown> {
 		case 'search': {
 			const u = need();
 			const [query, removed] = u.codec.normalize(req.query, u.library.alphabet);
-			const r = u.library.search(query, req.seed);
+			// English searches insist on a real lead-in before the sentence (leadin.ts); Spanish, the frozen search
+			const r =
+				u.manifest.id === 'babel-en-1'
+					? searchWithLeadIn(u.library, u.codec, query, req.seed)
+					: u.library.search(query, req.seed);
 			const c = u.library.pageEncode(r.page);
 			const bits = bitsOf(c);
 			return {
