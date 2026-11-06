@@ -4,6 +4,7 @@
 set -euo pipefail
 cd app
 npx --yes pnpm@10.29.3 build
+node ../deploy/english-head.mjs
 for u in babel-1 babel-en-1; do
 	mkdir -p "build/universe/$u"
 	cp -R "../lab/universes/$u/." "build/universe/$u/"

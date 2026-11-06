@@ -268,7 +268,7 @@
 		<p>It's time to build.</p>
 		<div class="ways">
 			<InkLink href={resolve('/en/search')}>Search for a sentence</InkLink>
-			<InkLink href={resolve('/en/go')}>Go to an address</InkLink>
+			<InkLink href={resolve('/en/browse')}>Go to an address</InkLink>
 		</div>
 		{@render credit()}
 	</section>

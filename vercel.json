@@ -24,5 +24,9 @@
       ]
     }
   ],
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [
+    { "source": "/en", "destination": "/en.html" },
+    { "source": "/en/(.*)", "destination": "/en.html" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }

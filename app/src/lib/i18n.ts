@@ -1,6 +1,6 @@
 /**
  * The Library in two languages: Spanish, at the city's own addresses (/, /teoria, /buscar, /ir, /sala/…), and
- * English under /en (/en/theory, /en/search, /en/go, /en/room/…). Each is a universe of its own, ordered by its
+ * English under /en (/en/theory, /en/search, /en/browse, /en/room/…). Each is a universe of its own, ordered by its
  * own Librarian, so a page's address belongs to one of them only. Every place speaks the language of the
  * address it is at, and its links stay in it.
  */
@@ -31,7 +31,7 @@ export function pathTo(way: Way, l: Lang = lang()): string {
 				? resolve('/en/theory')
 				: way === 'search'
 					? resolve('/en/search')
-					: resolve('/en/go');
+					: resolve('/en/browse');
 	return way === 'cover'
 		? resolve('/')
 		: way === 'theory'
@@ -64,7 +64,7 @@ const PLACES: Record<string, Way> = {
 	'/buscar': 'search',
 	'/en/search': 'search',
 	'/ir': 'go',
-	'/en/go': 'go'
+	'/en/browse': 'go'
 };
 
 /**
@@ -93,7 +93,7 @@ export const COMMON = {
 	},
 	en: {
 		library: 'The Library of Babel',
-		ways: { theory: 'Theory', search: 'Search', go: 'Go' },
+		ways: { theory: 'Theory', search: 'Search', go: 'Browse' },
 		back: '‹ Back',
 		copy: 'Copy the link',
 		copied: 'Copied',

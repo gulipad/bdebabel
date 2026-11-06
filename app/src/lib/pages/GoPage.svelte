@@ -1,7 +1,7 @@
 <script lang="ts">
 	/**
 	 * Ir: to an address you have; or, by chance, to a room to walk into, or to a page. The same page in both
-	 * languages (/ir, /en/go): its drawings and words need no model, only its ways do.
+	 * languages (/ir, /en/browse): its drawings and words need no model, only its ways do.
 	 */
 	import { goto } from '$app/navigation';
 	import { seed } from '#lib/address.ts';
@@ -29,17 +29,17 @@
 				'Pega lo que tengas: el nombre o el enlace de una sala, o la dirección de una página. Si quieres, completa el muro, la balda, el libro y la página.'
 		},
 		en: {
-			title: 'Go',
+			title: 'Browse',
 			why: 'To go somewhere at random',
 			seeking: 'Looking for a room…',
 			choosing: 'The Librarian is choosing a page…',
-			heading: 'Go at random',
+			heading: 'Browse at random',
 			hint: 'Every room has four walls of five shelves, 32 books to a shelf and 410 pages to a book.',
 			room: 'A room at random',
 			roomNote: 'For you to choose the wall, the shelf, the book and the page.',
 			page: 'A page at random',
 			pageNote: 'Any address at all, and its page.',
-			toAddress: 'Or to an address',
+			toAddress: 'Or go to an address',
 			paste:
 				"Paste whatever you have: a room's name or link, or a page's address. If you like, fill in the wall, the shelf, the book and the page."
 		}
