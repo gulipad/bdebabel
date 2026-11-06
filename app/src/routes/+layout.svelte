@@ -14,6 +14,7 @@
 	import { movedWithin } from '#lib/ui/visit.ts';
 	import Door from '#lib/universe/Door.svelte';
 	import { door } from '#lib/universe/door.svelte.ts';
+	import englishMeta from '#lib/english-meta.json';
 	import type { LayoutProps } from './$types';
 
 	let { children }: LayoutProps = $props();
@@ -77,22 +78,9 @@
 	const back = () => goto(pathTo('cover', l));
 
 	// the page says which language it is in, and so do the words a link to it is shared with (for the readers
-	// that run the city's script: the others see app.html's, which are the Spanish edition's)
-	const ENGLISH_META: Record<string, string> = {
-		description:
-			'The Library of Babel: every page of 3,200 characters has its address, and the readable ones live near the centre.',
-		'og:site_name': 'The Library of Babel',
-		'og:title': 'The Library of Babel',
-		'og:description':
-			"Borges's Library of Babel, in English, with a language model as its cartographer.",
-		'og:url': 'https://babel.gulipad.com/en',
-		'og:locale': 'en_GB',
-		'og:image:alt': 'The Library of Babel: a city of hexagonal rooms drawn in ink',
-		'twitter:title': 'The Library of Babel',
-		'twitter:description':
-			"Borges's Library of Babel, in English, with a language model as its cartographer.",
-		'twitter:image:alt': 'The Library of Babel: a city of hexagonal rooms drawn in ink'
-	};
+	// that run the city's script; link previews, which don't, get them from en.html, made from the same file by
+	// deploy/english-head.mjs)
+	const ENGLISH_META: Record<string, string> = englishMeta;
 	$effect(() => {
 		document.documentElement.lang = l;
 		for (const [key, english] of Object.entries(ENGLISH_META)) {

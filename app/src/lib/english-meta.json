@@ -1,0 +1,14 @@
+{
+	"description": "The Library of Babel: every page of 3,200 characters has its address, and the readable ones live near the centre.",
+	"og:site_name": "The Library of Babel",
+	"og:title": "The Library of Babel",
+	"og:description": "Borges's Library of Babel, in English, with a language model as its cartographer.",
+	"og:url": "https://babel.gulipad.com/en",
+	"og:locale": "en_GB",
+	"og:image": "https://babel.gulipad.com/og-en.jpg",
+	"og:image:alt": "The Library of Babel: a city of hexagonal rooms drawn in ink",
+	"twitter:title": "The Library of Babel",
+	"twitter:description": "Borges's Library of Babel, in English, with a language model as its cartographer.",
+	"twitter:image": "https://babel.gulipad.com/og-en.jpg",
+	"twitter:image:alt": "The Library of Babel: a city of hexagonal rooms drawn in ink"
+}

@@ -99,7 +99,7 @@ export function searchWithLeadIn(
 	codec: CodecModule,
 	query: string,
 	seed: string,
-	{ n = 32, bridge = 96, minLead = 40 } = {}
+	{ n = 32, bridge = 96, minLead = 40, scored = 24 } = {}
 ): SearchResult {
 	const L = library as unknown as Parts;
 	let [q] = codec.normalize(query, L.alphabet);
@@ -113,6 +113,8 @@ export function searchWithLeadIn(
 	const r2l = L.t.vocab['<|r2l|>'];
 	const remote = (b: number[]) => b.some((t) => L.avoid[L.index.get(t) ?? 0]);
 	for (let attempt = 1; attempt <= 3; attempt++) {
+		// a try whose drafts all fell short asks for less on the next: half the lead-in, then none (the case rule stays)
+		const least = attempt === 1 ? minLead : attempt === 2 ? minLead / 2 : 0;
 		// the start of the page, from the Library, cut at its last paragraph break
 		const farChars = rng.below(Math.max(1, L.PAGE - q.length - 4 * bridge));
 		let far: Item[] = farChars ? L.decode(rng.bits(farChars * 16 + 64), farChars)[0] : [];
@@ -144,7 +146,7 @@ export function searchWithLeadIn(
 		for (const [b, logq, joined] of drafts) {
 			const lead = L.textOf(b);
 			const seam = either || (capital ? endsSentence(lead) : !endsSentence(lead));
-			if (!joined || lead.trim().length < minLead || remote(b) || !seam || echoes(lead, q)) {
+			if (!joined || lead.trim().length < least || remote(b) || !seam || echoes(lead, q)) {
 				rejected++;
 				continue;
 			}
@@ -165,7 +167,14 @@ export function searchWithLeadIn(
 				continue;
 			}
 			L.eng.pos = fPos;
-			parts.push([L.logp([...b, ...qToks], L.PAGE - farText.length, far), logq, b]);
+			// weighed on the lead-in and the query's first `scored` items: where the two meet decides the weight, and the
+			// rest of a long query barely depends on what led into it (scoring all of a 120-token query, 18 times, took
+			// ~10 s of a search)
+			parts.push([
+				L.logp([...b, ...qToks.slice(0, scored)], L.PAGE - farText.length, far),
+				logq,
+				b
+			]);
 		}
 		if (!parts.length) continue;
 		// weights p/q in integers: log2 Q16 -> Q12 -> the shipped Q31 2^-f table; one integer draw
